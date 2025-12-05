@@ -1,6 +1,6 @@
 'use client';
 
-export default function Features(): JSX.Element {
+export default function Features() {
   const features = [
     {
       title: 'Multi-Provider Support',
