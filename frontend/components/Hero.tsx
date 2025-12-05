@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-export default function Hero(): JSX.Element {
+export default function Hero() {
   return (
     <section className="relative w-full py-20 md:py-28 lg:py-32 px-4">
       <div className="max-w-4xl mx-auto text-center">

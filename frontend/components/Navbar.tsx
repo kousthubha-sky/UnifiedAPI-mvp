@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 
-export default function Navbar(): JSX.Element {
+export default function Navbar() {
   const pathname = usePathname();
 
   const isActive = (href: string): boolean => pathname === href;

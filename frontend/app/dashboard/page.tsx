@@ -11,7 +11,7 @@ interface GeneratedKey {
   key: string;
 }
 
-export default function Dashboard(): JSX.Element {
+export default function Dashboard() {
   const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);

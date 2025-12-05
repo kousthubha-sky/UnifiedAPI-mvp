@@ -1,13 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0066cc;
+  --color-secondary: #6f42c1;
+}
 
 @layer base {
-  :root {
-    --primary: #0066cc;
-    --secondary: #6f42c1;
-  }
-
   body {
     @apply antialiased;
   }
@@ -57,23 +55,5 @@
 
   .form-group {
     @apply mb-4;
-  }
-}
-
-@layer utilities {
-  .text-primary {
-    @apply text-[var(--primary)];
-  }
-
-  .bg-primary {
-    @apply bg-[var(--primary)];
-  }
-
-  .border-primary {
-    @apply border-[var(--primary)];
-  }
-
-  .focus-ring-primary {
-    @apply focus:ring-[var(--primary)];
   }
 }

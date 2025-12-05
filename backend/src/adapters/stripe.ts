@@ -15,15 +15,22 @@ export class StripeAdapter implements PaymentAdapter {
     if (!key) {
       throw new Error('Stripe API key not provided');
     }
-    this.stripe = new Stripe(key);
+    this.stripe = new Stripe(key, {
+      apiVersion: '2024-06-20',
+    });
   }
 
   async createPayment(request: CreatePaymentRequest): Promise<CreatePaymentResponse> {
     try {
-      const charge = await this.stripe.charges.create({
+      const paymentIntent = await this.stripe.paymentIntents.create({
         amount: Math.round(request.amount * 100),
         currency: request.currency.toLowerCase(),
-        source: request.payment_method,
+        payment_method: request.payment_method,
+        confirm: true,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never',
+        },
         description: request.description,
         metadata: {
           customer_id: request.customer_id,
@@ -33,7 +40,7 @@ export class StripeAdapter implements PaymentAdapter {
 
       auditLog('PAYMENT_CREATED', {
         provider: 'stripe',
-        transaction_id: charge.id,
+        transaction_id: paymentIntent.id,
         amount: request.amount,
         currency: request.currency,
         customer_id: request.customer_id,
@@ -41,11 +48,11 @@ export class StripeAdapter implements PaymentAdapter {
 
       return {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        provider_transaction_id: charge.id,
+        provider_transaction_id: paymentIntent.id,
         amount: request.amount,
         currency: request.currency,
-        status: charge.paid ? 'completed' : 'pending',
-        created_at: new Date(charge.created * 1000).toISOString(),
+        status: paymentIntent.status === 'succeeded' ? 'completed' : 'pending',
+        created_at: new Date(paymentIntent.created * 1000).toISOString(),
         metadata: request.metadata,
       };
     } catch (error) {
@@ -61,7 +68,7 @@ export class StripeAdapter implements PaymentAdapter {
   ): Promise<RefundPaymentResponse> {
     try {
       const refund = await this.stripe.refunds.create({
-        charge: transactionId,
+        payment_intent: transactionId,
         amount: amount ? Math.round(amount * 100) : undefined,
         reason: reason as Stripe.RefundCreateParams.Reason,
       });
