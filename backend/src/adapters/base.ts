@@ -1,4 +1,10 @@
-import { CreatePaymentRequest, CreatePaymentResponse, RefundPaymentResponse } from '../types/payment.js';
+import { 
+  CreatePaymentRequest, 
+  CreatePaymentResponse, 
+  RefundPaymentResponse,
+  ListPaymentsParams,
+  AdapterListPaymentsResult
+} from '../types/payment.js';
 
 export interface PaymentAdapter {
   createPayment(request: CreatePaymentRequest): Promise<CreatePaymentResponse>;
@@ -7,6 +13,7 @@ export interface PaymentAdapter {
     amount?: number,
     reason?: string
   ): Promise<RefundPaymentResponse>;
+  listPayments(params: ListPaymentsParams): Promise<AdapterListPaymentsResult>;
 }
 
 export interface AdapterConfig {

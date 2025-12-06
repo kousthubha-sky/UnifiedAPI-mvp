@@ -3,9 +3,14 @@ import {
   CreatePaymentRequest,
   CreatePaymentResponse,
   RefundPaymentResponse,
+  ListPaymentsParams,
+  AdapterListPaymentsResult,
+  PaymentRecord,
+  PaymentStatus,
 } from '../types/payment.js';
 import { PaymentAdapter } from './base.js';
 import { auditLog, errorLog } from '../utils/logger.js';
+import supabase from '../utils/supabase.js';
 
 export class StripeAdapter implements PaymentAdapter {
   private stripe: Stripe;
@@ -23,7 +28,7 @@ export class StripeAdapter implements PaymentAdapter {
   async createPayment(request: CreatePaymentRequest): Promise<CreatePaymentResponse> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: Math.round(request.amount * 100),
+        amount: toStripeAmount(request.amount),
         currency: request.currency.toLowerCase(),
         payment_method: request.payment_method,
         confirm: true,
@@ -47,11 +52,11 @@ export class StripeAdapter implements PaymentAdapter {
       });
 
       return {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: paymentIntent.id,
         provider_transaction_id: paymentIntent.id,
         amount: request.amount,
-        currency: request.currency,
-        status: paymentIntent.status === 'succeeded' ? 'completed' : 'pending',
+        currency: paymentIntent.currency?.toUpperCase() || request.currency,
+        status: mapStripeStatus(paymentIntent.status),
         created_at: new Date(paymentIntent.created * 1000).toISOString(),
         metadata: request.metadata,
       };
@@ -69,7 +74,7 @@ export class StripeAdapter implements PaymentAdapter {
     try {
       const refund = await this.stripe.refunds.create({
         payment_intent: transactionId,
-        amount: amount ? Math.round(amount * 100) : undefined,
+        amount: amount ? toStripeAmount(amount) : undefined,
         reason: reason as Stripe.RefundCreateParams.Reason,
       });
 
@@ -77,14 +82,14 @@ export class StripeAdapter implements PaymentAdapter {
         provider: 'stripe',
         original_transaction_id: transactionId,
         refund_id: refund.id,
-        amount: (refund.amount / 100).toFixed(2),
+        amount: refund.amount ? fromStripeAmount(refund.amount) : amount,
       });
 
       return {
         refund_id: refund.id,
         original_transaction_id: transactionId,
-        amount: refund.amount / 100,
-        status: refund.status === 'succeeded' ? 'completed' : 'pending',
+        amount: refund.amount ? fromStripeAmount(refund.amount) : amount || 0,
+        status: mapStripeStatus(refund.status),
         created_at: new Date(refund.created * 1000).toISOString(),
       };
     } catch (error) {
@@ -92,4 +97,88 @@ export class StripeAdapter implements PaymentAdapter {
       throw error;
     }
   }
+
+  async listPayments(params: ListPaymentsParams): Promise<AdapterListPaymentsResult> {
+    const limit = params.limit ?? 10;
+    const offset = params.offset ?? 0;
+
+    let query = supabase
+      .from('payments')
+      .select('*', { count: 'exact' })
+      .eq('provider', 'stripe')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (params.status) {
+      query = query.eq('status', params.status);
+    }
+    if (params.customer_id) {
+      query = query.eq('customer_id', params.customer_id);
+    }
+    if (params.start_date) {
+      query = query.gte('created_at', params.start_date);
+    }
+    if (params.end_date) {
+      query = query.lte('created_at', params.end_date);
+    }
+
+    const { data, error, count } = await query;
+    if (error) {
+      errorLog(error, { context: 'Stripe adapter listPayments failed' });
+      throw error;
+    }
+
+    const payments: PaymentRecord[] = (data || []).map((record) => this.mapSupabaseRecord(record));
+
+    return {
+      payments,
+      total: count ?? payments.length,
+    };
+  }
+
+  private mapSupabaseRecord(record: Record<string, unknown>): PaymentRecord {
+    return {
+      id: String(record.id),
+      provider_transaction_id: String(record.provider_transaction_id),
+      provider: 'stripe',
+      amount: Number(record.amount),
+      currency: String(record.currency).toUpperCase(),
+      status: (record.status as PaymentStatus) || 'pending',
+      customer_id: (record.customer_id as string) ?? null,
+      metadata: (record.metadata as Record<string, unknown>) ?? null,
+      refund_id: (record.refund_id as string) ?? null,
+      refund_status: (record.refund_status as string) ?? null,
+      refund_amount:
+        record.refund_amount === null || record.refund_amount === undefined
+          ? null
+          : Number(record.refund_amount),
+      created_at: String(record.created_at),
+      updated_at: String(record.updated_at),
+    };
+  }
 }
+
+const STRIPE_STATUS_MAP: Record<string, PaymentStatus> = {
+  succeeded: 'completed',
+  requires_action: 'processing',
+  requires_capture: 'processing',
+  requires_confirmation: 'processing',
+  requires_payment_method: 'failed',
+  processing: 'processing',
+  canceled: 'failed',
+  failed: 'failed',
+  pending: 'pending',
+  refunded: 'refunded',
+};
+
+const toStripeAmount = (amount: number): number => Math.round(amount * 100);
+
+const fromStripeAmount = (amount: number): number => Number((amount / 100).toFixed(2));
+
+const mapStripeStatus = (status?: string | null): PaymentStatus => {
+  if (!status) {
+    return 'pending';
+  }
+
+  return STRIPE_STATUS_MAP[status] || 'pending';
+};
