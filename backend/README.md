@@ -7,18 +7,24 @@ A robust Node.js + TypeScript backend service for processing payments across mul
 - **Multi-Provider Payment Processing**: Support for Stripe and PayPal adapters
 - **Type-Safe**: Full TypeScript support with strict mode enabled
 - **REST API with Swagger UI**: Interactive API documentation
-- **Authentication**: API key validation via headers
-- **Rate Limiting**: Redis-backed token bucket rate limiter
-- **Structured Logging**: Pino logger with audit trail capabilities
+- **Authentication**: Database-backed API key validation with Redis caching
+- **Rate Limiting**: Per-tier rate limiting with Redis token bucket algorithm
+- **Structured Logging**: Pino logger with database audit trail capabilities
 - **Error Handling**: Centralized error handler with domain-specific error mapping
 - **Caching**: Redis-backed caching for performance optimization
-- **Database Integration**: Supabase for metadata persistence
+- **Database Integration**: Supabase PostgreSQL for schema, customers, and audit logs
+- **Customer Management**: Full customer lifecycle management with API keys
+- **Audit Logging**: Comprehensive audit logs with trace IDs and performance metrics
 
 ## Project Structure
 
 ```
 src/
 ├── server.ts                 # Fastify server bootstrap
+├── repositories/             # Database access layer
+│   ├── customerRepository.ts # Customer CRUD operations
+│   ├── apiKeyRepository.ts   # API key generation & management
+│   └── auditRepository.ts    # Audit log persistence
 ├── types/
 │   └── payment.ts           # Shared DTOs and validation schemas
 ├── utils/
@@ -31,12 +37,18 @@ src/
 │   └── paypal.ts            # PayPal adapter implementation
 └── api/
     ├── routes/
+    │   ├── customers.ts     # Customer management endpoints
+    │   ├── apiKeys.ts       # API key management endpoints
     │   └── payments.ts      # Payment endpoints
     └── middleware/
-        ├── auth.ts          # API key validation
+        ├── auth.ts          # API key validation with caching
         ├── logging.ts       # Request/response logging
-        ├── rateLimit.ts     # Redis-backed rate limiter
+        ├── rateLimit.ts     # Redis-backed rate limiter with tier support
         └── errorHandler.ts  # Error mapping and handling
+db/
+├── migrations/
+│   └── 001_initial_schema.sql # Database schema creation
+└── README.md                  # Database setup guide
 ```
 
 ## Installation
@@ -121,7 +133,123 @@ GET /health
 
 Returns server health status.
 
-### Create Payment
+### Customer Management
+
+#### Create Customer
+
+```
+POST /api/v1/customers
+
+{
+  "email": "customer@example.com",
+  "tier": "starter"  # Optional: starter, growth, scale
+}
+```
+
+Response:
+```json
+{
+  "id": "uuid",
+  "email": "customer@example.com",
+  "tier": "starter",
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+#### Get Customer Profile
+
+```
+GET /api/v1/customers/:id
+X-API-Key: your-api-key
+```
+
+#### Update Customer Profile
+
+```
+PATCH /api/v1/customers/:id
+X-API-Key: your-api-key
+
+{
+  "tier": "growth",
+  "stripe_account_id": "acct_123",
+  "paypal_account_id": "acct_456"
+}
+```
+
+### API Key Management
+
+#### Generate API Key
+
+```
+POST /api/v1/api-keys
+X-API-Key: your-api-key
+
+{
+  "name": "Production Key"  # Optional
+}
+```
+
+Response:
+```json
+{
+  "id": "uuid",
+  "key": "sk_...",
+  "name": "Production Key",
+  "is_active": true,
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+#### List API Keys
+
+```
+GET /api/v1/api-keys
+X-API-Key: your-api-key
+```
+
+#### Revoke API Key
+
+```
+PATCH /api/v1/api-keys/:id
+X-API-Key: your-api-key
+
+{
+  "action": "revoke"
+}
+```
+
+#### Rotate API Key
+
+```
+PATCH /api/v1/api-keys/:id
+X-API-Key: your-api-key
+
+{
+  "action": "rotate"
+}
+```
+
+Response:
+```json
+{
+  "id": "uuid",
+  "key": "sk_...",  # New key
+  "name": "Production Key",
+  "is_active": true,
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+#### Delete API Key
+
+```
+DELETE /api/v1/api-keys/:id
+X-API-Key: your-api-key
+```
+
+### Payment Operations
+
+#### Create Payment
 
 ```
 POST /payments
@@ -140,7 +268,7 @@ X-API-Key: your-api-key
 }
 ```
 
-### Refund Payment
+#### Refund Payment
 
 ```
 POST /payments/:id/refund
@@ -170,40 +298,37 @@ Middleware is executed in the following order:
 
 The project uses `NodeNext` module resolution to enforce `.js` extensions on all imports. This ensures compatibility with ES modules and future-proof code.
 
-## Database Schema
+## Database Setup
 
-The application expects the following Supabase tables:
+### Supabase Configuration
 
-### `api_keys` Table
+1. Create a Supabase project at https://supabase.com
+2. Run the migrations from `db/migrations/001_initial_schema.sql` in the Supabase SQL editor
+3. Add your Supabase credentials to `.env`:
+   ```
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your-anon-key
+   ```
 
-```sql
-CREATE TABLE api_keys (
-  id TEXT PRIMARY KEY,
-  key TEXT UNIQUE NOT NULL,
-  active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+### Database Schema
+
+The application uses the following Supabase tables:
+
+- **customers**: Customer accounts and subscription tiers
+- **api_keys**: API keys for authentication
+- **audit_logs**: Audit trail of all API requests
+- **usage_stats**: Daily usage statistics per customer
+- **payments**: Payment transaction records
+
+For complete schema details, see `db/README.md`.
+
+### Rate Limiting Tiers
+
 ```
-
-### `payments` Table
-
-```sql
-CREATE TABLE payments (
-  id TEXT PRIMARY KEY,
-  provider_transaction_id TEXT UNIQUE NOT NULL,
-  provider TEXT NOT NULL,
-  amount DECIMAL(19, 4) NOT NULL,
-  currency TEXT NOT NULL,
-  status TEXT NOT NULL,
-  customer_id TEXT NOT NULL,
-  metadata JSONB,
-  refund_id TEXT,
-  refund_status TEXT,
-  refund_amount DECIMAL(19, 4),
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+starter:  1,000  requests/hour
+growth:   5,000  requests/hour
+scale:   20,000  requests/hour
+admin:   Unlimited
 ```
 
 ## Error Codes
@@ -244,9 +369,45 @@ Audit logs are automatically generated for payment operations:
 
 Rate limiting uses a token bucket algorithm with Redis:
 
-- Refill Rate: 100 tokens per minute
-- Capacity: 1000 tokens
-- Per API Key
+- Per-tier limits (see above)
+- Refill interval: 1 minute
+- Tracked per API Key in Redis
+- Response headers include X-RateLimit-* information
+
+### Rate Limit Headers
+
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1704067200
+```
+
+## API Key Flow
+
+1. **Create Customer**: POST /api/v1/customers
+2. **Generate API Key**: POST /api/v1/api-keys (requires authentication)
+3. **Use API Key**: Include `X-API-Key: your-key` in requests
+4. **Manage Keys**: List, revoke, rotate, or delete keys as needed
+
+## Authentication Flow
+
+1. Client sends request with `X-API-Key` header
+2. Auth middleware validates the key against the database
+3. Customer and tier information are cached in Redis for 1 hour
+4. Rate limiting is applied based on customer tier
+5. Request proceeds with customerId and tier attached to request object
+
+## Audit Logging
+
+All API requests are logged to the `audit_logs` table with:
+
+- Trace ID (for request tracing)
+- Customer ID
+- Endpoint and HTTP method
+- Response status code
+- Request latency
+- Error messages (if applicable)
+- Request/response bodies (optional)
 
 ## License
 

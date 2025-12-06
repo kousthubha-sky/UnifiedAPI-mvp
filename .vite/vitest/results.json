@@ -1,0 +1,1 @@
+{"version":"2.1.9","results":[[":backend/tests/routes.test.ts",{"duration":0,"failed":false}],[":backend/tests/repositories.test.ts",{"duration":0,"failed":false}],[":backend/src/types/payment.test.ts",{"duration":4.167579000000046,"failed":false}]]}
