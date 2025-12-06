@@ -10,6 +10,8 @@ import { registerAuthMiddleware } from './api/middleware/auth.js';
 import { registerRateLimitMiddleware } from './api/middleware/rateLimit.js';
 import { registerErrorHandler } from './api/middleware/errorHandler.js';
 import { registerPaymentRoutes } from './api/routes/payments.js';
+import { registerCustomerRoutes } from './api/routes/customers.js';
+import { registerApiKeyRoutes } from './api/routes/apiKeys.js';
 
 let app: FastifyInstance | null = null;
 
@@ -57,6 +59,10 @@ const createServer = async (): Promise<FastifyInstance> => {
   registerRateLimitMiddleware(app);
 
   await registerPaymentRoutes(app);
+
+  await registerCustomerRoutes(app);
+
+  await registerApiKeyRoutes(app);
 
   app.get('/health', async (_request, _reply) => {
     return { status: 'ok', timestamp: new Date().toISOString() };

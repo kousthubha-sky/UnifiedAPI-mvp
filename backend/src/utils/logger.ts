@@ -1,4 +1,5 @@
 import * as pino from 'pino';
+import * as auditRepository from '../repositories/auditRepository.js';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -27,6 +28,14 @@ export const auditLog = (action: string, details: Record<string, unknown>) => {
     timestamp: new Date().toISOString(),
     ...details,
   });
+};
+
+export const auditLogToDatabase = async (entry: auditRepository.AuditLogEntry): Promise<void> => {
+  try {
+    await auditRepository.log(entry);
+  } catch (error) {
+    logger.error({ error }, 'Failed to log audit entry to database');
+  }
 };
 
 export const errorLog = (error: Error | unknown, context: Record<string, unknown> = {}) => {

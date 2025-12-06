@@ -81,7 +81,12 @@ npm install
 
 # Copy environment variables
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your Supabase and payment provider credentials
+
+# Set up Supabase (if not already done)
+# 1. Create a project at https://supabase.com
+# 2. Run db/migrations/001_initial_schema.sql in Supabase SQL editor
+# 3. Update .env with your SUPABASE_URL and SUPABASE_ANON_KEY
 
 # Build TypeScript
 npm run build
@@ -92,6 +97,8 @@ npm run dev
 # Or start production server
 npm start
 ```
+
+For detailed Supabase setup instructions, see `backend/db/README.md`
 
 ### Frontend Setup
 
@@ -155,10 +162,20 @@ Once the backend is running, visit:
 
 ### Key Endpoints
 
+#### Customer Management
+- `POST /api/v1/customers` - Create customer account
+- `GET /api/v1/customers/:id` - Get customer profile
+- `PATCH /api/v1/customers/:id` - Update customer profile
+
+#### API Key Management
+- `POST /api/v1/api-keys` - Generate API key
+- `GET /api/v1/api-keys` - List API keys
+- `PATCH /api/v1/api-keys/:id` - Revoke/rotate key
+- `DELETE /api/v1/api-keys/:id` - Delete key
+
+#### Payment Operations
 - `POST /payments` - Create a payment
 - `POST /payments/:id/refund` - Refund a payment
-- `POST /api-keys/generate` - Generate API key
-- `GET /api-keys` - List API keys
 
 ## 🧪 Development
 
