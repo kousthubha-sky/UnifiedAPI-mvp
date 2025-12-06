@@ -4,6 +4,8 @@ import logger from '../../utils/logger.js';
 import { ErrorResponse } from '../../types/payment.js';
 
 export class PaymentError extends Error {
+  public trace_id?: string;
+
   constructor(
     public code: string,
     message: string,
@@ -12,6 +14,10 @@ export class PaymentError extends Error {
   ) {
     super(message);
     this.name = 'PaymentError';
+
+    if (details?.trace_id && typeof details.trace_id === 'string') {
+      this.trace_id = details.trace_id;
+    }
   }
 }
 
@@ -56,7 +62,12 @@ export const registerErrorHandler = async (app: FastifyInstance) => {
       error: message,
       code,
       details,
+      trace_id: error instanceof PaymentError ? error.trace_id : undefined,
     };
+
+    if (!response.trace_id && details?.trace_id && typeof details.trace_id === 'string') {
+      response.trace_id = String(details.trace_id);
+    }
 
     reply.status(statusCode).send(response);
   });
