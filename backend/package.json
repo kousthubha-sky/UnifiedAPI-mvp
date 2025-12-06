@@ -15,16 +15,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
     "@fastify/cors": "^10.0.0",
     "@fastify/swagger": "^9.0.0",
     "@fastify/swagger-ui": "^5.0.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^17.2.3",
     "fastify": "^5.0.0",
+    "paypal-rest-sdk": "^1.7.1",
     "pino": "^9.0.0",
     "pino-pretty": "^11.0.0",
     "redis": "^4.7.0",
     "stripe": "^16.0.0",
-    "paypal-rest-sdk": "^1.7.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
