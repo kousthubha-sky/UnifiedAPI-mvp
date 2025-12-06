@@ -53,6 +53,16 @@ See [UPDATE_SUMMARY.md](./UPDATE_SUMMARY.md) for a quick overview or [MIGRATION_
 │   ├── package.json
 │   └── tailwind.config.ts # Tailwind configuration
 │
+├── sdk/                    # Node.js/TypeScript SDK
+│   ├── src/               # SDK source code
+│   ├── tests/             # Unit and integration tests
+│   ├── dist/              # Built SDK (ESM + CJS)
+│   ├── package.json
+│   └── README.md          # SDK documentation
+│
+├── examples/              # Example scripts
+│   └── node/              # Node.js SDK examples
+│
 └── docs/                  # Documentation
     ├── UPDATE_SUMMARY.md       # Quick update overview
     ├── MIGRATION_GUIDE.md      # Detailed migration guide
@@ -99,6 +109,24 @@ npm start
 ```
 
 For detailed Supabase setup instructions, see `backend/db/README.md`
+
+### SDK Setup
+
+```bash
+cd sdk
+
+# Install dependencies
+npm install
+
+# Build the SDK (produces ESM + CJS + type declarations)
+npm run build
+
+# Run tests
+npm test
+
+# Run linter
+npm run lint
+```
 
 ### Frontend Setup
 
@@ -199,6 +227,18 @@ npm run lint        # Run ESLint (Next.js)
 npm run type-check  # Run TypeScript compiler check
 ```
 
+### SDK Commands
+
+```bash
+npm run build       # Build ESM + CJS bundles with type declarations
+npm run dev         # Build with watch mode
+npm run test        # Run unit tests
+npm run test:integration  # Run integration tests (requires backend)
+npm run lint        # Run ESLint
+npm run typecheck   # Run TypeScript compiler check
+npm run release     # Build + test + lint (pre-publish)
+```
+
 ## 🔐 Authentication
 
 The API uses API key authentication:
@@ -281,6 +321,105 @@ Custom utilities are available:
 - [DEPENDENCY_VERSIONS.md](./DEPENDENCY_VERSIONS.md) - Complete version list
 - [TEST_CHECKLIST.md](./TEST_CHECKLIST.md) - Testing guidelines
 - [CHANGELOG.md](./CHANGELOG.md) - Release notes
+- [sdk/README.md](./sdk/README.md) - SDK documentation
+- [examples/node/README.md](./examples/node/README.md) - SDK examples
+
+## 📦 SDK Usage
+
+### Quick Start
+
+```typescript
+import { UnifiedAPIClient } from '@paymenthub/sdk';
+
+const client = new UnifiedAPIClient({
+  apiKey: 'sk_your_api_key',
+  baseUrl: 'https://api.paymenthub.com',
+});
+
+// Create a payment
+const payment = await client.payments.create({
+  amount: 1000,
+  currency: 'USD',
+  provider: 'stripe',
+  customer_id: 'cust_123',
+  payment_method: 'pm_card_visa',
+});
+
+// Refund a payment
+const refund = await client.payments.refund(payment.id);
+
+// List payments
+const payments = await client.payments.list({ status: 'completed' });
+```
+
+### Installing from Local Path
+
+During development, you can install the SDK from the local path:
+
+```bash
+npm install ../sdk
+```
+
+For full SDK documentation, see [sdk/README.md](./sdk/README.md).
+
+## 🚀 SDK Publishing Flow
+
+### Versioning Strategy
+
+The SDK follows [Semantic Versioning](https://semver.org/):
+
+- **Major** (1.0.0): Breaking API changes
+- **Minor** (0.1.0): New features, backward compatible
+- **Patch** (0.0.1): Bug fixes only
+
+### npm Tag Strategy
+
+| Tag | Purpose | Example |
+|-----|---------|---------|
+| `latest` | Stable releases (default) | `npm install @paymenthub/sdk` |
+| `next` | Pre-release versions | `npm install @paymenthub/sdk@next` |
+| `canary` | Development builds | `npm install @paymenthub/sdk@canary` |
+
+### Publishing Steps
+
+1. **Update version:**
+   ```bash
+   cd sdk
+   npm version patch  # or minor, major
+   ```
+
+2. **Build and test:**
+   ```bash
+   npm run release  # Runs build + test + lint
+   ```
+
+3. **Publish to npm:**
+   ```bash
+   # Stable release
+   npm publish --access public
+   
+   # Pre-release (beta)
+   npm version prerelease --preid=beta
+   npm publish --tag next --access public
+   
+   # Canary (development)
+   npm version prerelease --preid=canary
+   npm publish --tag canary --access public
+   ```
+
+4. **Update changelog:**
+   - Add release notes to `sdk/CHANGELOG.md`
+   - Commit changes
+
+### Pre-publish Checklist
+
+- [ ] All tests passing (`npm test`)
+- [ ] Linting passes (`npm run lint`)
+- [ ] Build succeeds (`npm run build`)
+- [ ] Type declarations generated (`dist/index.d.ts` exists)
+- [ ] Both ESM and CJS bundles present
+- [ ] CHANGELOG.md updated
+- [ ] Version bumped in package.json
 
 ## 🤝 Contributing
 
