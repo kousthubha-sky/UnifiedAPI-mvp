@@ -28,13 +28,10 @@ export class StripeAdapter implements PaymentAdapter {
   async createPayment(request: CreatePaymentRequest): Promise<CreatePaymentResponse> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: toStripeAmount(request.amount),
+        amount: toStripeAmount(request.amount, request.currency),
         currency: request.currency.toLowerCase(),
-        payment_method: request.payment_method,
-        confirm: true,
         automatic_payment_methods: {
           enabled: true,
-          allow_redirects: 'never',
         },
         description: request.description,
         metadata: {
@@ -59,6 +56,7 @@ export class StripeAdapter implements PaymentAdapter {
         status: mapStripeStatus(paymentIntent.status),
         created_at: new Date(paymentIntent.created * 1000).toISOString(),
         metadata: request.metadata,
+        client_secret: paymentIntent.client_secret,
       };
     } catch (error) {
       errorLog(error, { context: 'Stripe payment creation failed', request });
@@ -78,17 +76,17 @@ export class StripeAdapter implements PaymentAdapter {
         reason: reason as Stripe.RefundCreateParams.Reason,
       });
 
-      auditLog('PAYMENT_REFUNDED', {
+       auditLog('PAYMENT_REFUNDED', {
         provider: 'stripe',
         original_transaction_id: transactionId,
         refund_id: refund.id,
-        amount: refund.amount ? fromStripeAmount(refund.amount) : amount,
+        amount: refund.amount ? fromStripeAmount(refund.amount, 'USD') : amount, // Default to USD if currency unknown
       });
 
       return {
         refund_id: refund.id,
         original_transaction_id: transactionId,
-        amount: refund.amount ? fromStripeAmount(refund.amount) : amount || 0,
+        amount: refund.amount ? fromStripeAmount(refund.amount, 'USD') : amount || 0, // Default to USD if currency unknown
         status: mapStripeStatus(refund.status),
         created_at: new Date(refund.created * 1000).toISOString(),
       };
@@ -171,9 +169,22 @@ const STRIPE_STATUS_MAP: Record<string, PaymentStatus> = {
   refunded: 'refunded',
 };
 
-const toStripeAmount = (amount: number): number => Math.round(amount * 100);
+const ZERO_DECIMAL_CURRENCIES = ['JPY', 'KRW', 'VND'];
+const THREE_DECIMAL_CURRENCIES = ['KWD', 'BHD', 'OMR'];
 
-const fromStripeAmount = (amount: number): number => Number((amount / 100).toFixed(2));
+const toStripeAmount = (amount: number, currency: string): number => {
+  const curr = currency.toUpperCase();
+  if (ZERO_DECIMAL_CURRENCIES.includes(curr)) return Math.round(amount);
+  if (THREE_DECIMAL_CURRENCIES.includes(curr)) return Math.round(amount * 1000);
+  return Math.round(amount * 100);
+};
+
+const fromStripeAmount = (amount: number, currency: string): number => {
+  const curr = currency.toUpperCase();
+  if (ZERO_DECIMAL_CURRENCIES.includes(curr)) return amount;
+  if (THREE_DECIMAL_CURRENCIES.includes(curr)) return Number((amount / 1000).toFixed(3));
+  return Number((amount / 100).toFixed(2));
+};
 
 const mapStripeStatus = (status?: string | null): PaymentStatus => {
   if (!status) {

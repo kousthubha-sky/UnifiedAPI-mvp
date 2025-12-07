@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { randomUUID } from 'crypto';
 import { normalizeCreatePaymentRequest, normalizeRefundPaymentRequest, normalizeListPaymentsQuery } from '../normalizers/request.js';
 import * as paymentService from '../services/paymentService.js';
 import { PaymentError } from '../middleware/errorHandler.js';
@@ -15,6 +16,10 @@ interface RefundPaymentParams {
 
 interface ListPaymentsQuery {
   Querystring: Record<string, unknown>;
+}
+
+interface CheckPaymentStatusParams {
+  Params: { id: string };
 }
 
 const ensurePaymentSchemas = (app: FastifyInstance) => {
@@ -155,18 +160,19 @@ export const registerPaymentRoutes = async (app: FastifyInstance) => {
         },
       },
     },
-    async (request: FastifyRequest<CreatePaymentBody>, reply: FastifyReply) => {
-      try {
-        const normalized = normalizeCreatePaymentRequest(request.body);
+     async (request: FastifyRequest<CreatePaymentBody>, reply: FastifyReply) => {
+       try {
+         const normalized = normalizeCreatePaymentRequest(request.body);
+         const idempotencyKey = request.headers['idempotency-key'] as string;
 
-        const response = await paymentService.createPayment(normalized);
+         const response = await paymentService.createPayment(normalized, idempotencyKey);
 
-        if (response.trace_id) {
-          reply.header('X-Trace-Id', response.trace_id);
-        }
+         if (response.trace_id) {
+           reply.header('X-Trace-Id', response.trace_id);
+         }
 
-        reply.status(201).send(response);
-      } catch (error) {
+         reply.status(201).send(response);
+       } catch (error) {
         if (error instanceof PaymentError) {
           throw error;
         }
@@ -225,6 +231,56 @@ export const registerPaymentRoutes = async (app: FastifyInstance) => {
         throw new PaymentError(
           ErrorCode.REFUND_FAILED,
           error instanceof Error ? error.message : 'Refund failed',
+          500
+        );
+      }
+    }
+  );
+
+  app.get<CheckPaymentStatusParams>(
+    '/api/v1/payments/:id/status',
+    {
+      schema: {
+        tags: ['payments'],
+        summary: 'Check payment status',
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Payment ID' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              status: { type: 'string', enum: ['pending', 'completed', 'failed', 'refunded', 'processing'] },
+              trace_id: { type: 'string' },
+            },
+          },
+          404: { $ref: 'ErrorResponse#' },
+          500: { $ref: 'ErrorResponse#' },
+        },
+      },
+    },
+    async (request: FastifyRequest<CheckPaymentStatusParams>, reply: FastifyReply) => {
+      try {
+        const { id } = request.params;
+        const traceId = randomUUID();
+
+        const status = await paymentService.checkPaymentStatus(id);
+
+        reply.header('X-Trace-Id', traceId);
+        reply.send({
+          status,
+          trace_id: traceId,
+        });
+      } catch (error) {
+        if (error instanceof PaymentError) {
+          throw error;
+        }
+        throw new PaymentError(
+          ErrorCode.INTERNAL_ERROR,
+          error instanceof Error ? error.message : 'Failed to check payment status',
           500
         );
       }

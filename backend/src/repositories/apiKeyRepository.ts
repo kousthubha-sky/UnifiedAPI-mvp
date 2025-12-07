@@ -38,7 +38,7 @@ export const generate = async (input: CreateApiKeyInput): Promise<{ key: string;
         {
           customer_id: input.customer_id,
           key_hash: keyHash,
-          key: key,
+          key: key, // TODO: Remove after migration to new schema
           name: input.name || `Key-${new Date().toISOString().slice(0, 10)}`,
           is_active: true,
         },
@@ -138,7 +138,7 @@ export const rotate = async (keyId: string): Promise<{ key: string; apiKey: ApiK
       .from('api_keys')
       .update({
         key_hash: newKeyHash,
-        key: newKey,
+        key: newKey, // TODO: Remove after migration to new schema
       })
       .eq('id', keyId)
       .select()

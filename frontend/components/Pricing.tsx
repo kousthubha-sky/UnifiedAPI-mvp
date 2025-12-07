@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import clsx from 'clsx';
+import { useAuth } from '@/lib/auth-context';
 
 interface PricingTier {
   name: string;
@@ -11,7 +12,6 @@ interface PricingTier {
   features: string[];
   highlighted?: boolean;
   cta: string;
-  ctaLink: string;
 }
 
 const tiers: PricingTier[] = [
@@ -29,7 +29,6 @@ const tiers: PricingTier[] = [
       'Community access',
     ],
     cta: 'Get Started Free',
-    ctaLink: '/signup',
   },
   {
     name: 'Growth',
@@ -48,7 +47,6 @@ const tiers: PricingTier[] = [
     ],
     highlighted: true,
     cta: 'Start Free Trial',
-    ctaLink: '/signup?plan=growth',
   },
   {
     name: 'Scale',
@@ -67,11 +65,26 @@ const tiers: PricingTier[] = [
       'Custom integrations',
     ],
     cta: 'Contact Sales',
-    ctaLink: '/signup?plan=scale',
   },
 ];
 
 export default function Pricing() {
+  const { user } = useAuth();
+
+  const getCtaLink = (tier: PricingTier) => {
+    if (user) {
+      // Authenticated users go to dashboard
+      return '/dashboard';
+    }
+    // Non-authenticated users go to signup with plan
+    if (tier.name === 'Scale') {
+      return '/signup?plan=scale';
+    } else if (tier.name === 'Growth') {
+      return '/signup?plan=growth';
+    }
+    return '/signup';
+  };
+
   return (
     <section id="pricing" className="w-full py-20 md:py-28 bg-white px-4">
       <div className="max-w-7xl mx-auto">
@@ -138,17 +151,17 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              <Link
-                href={tier.ctaLink}
-                className={clsx(
-                  'block w-full text-center py-3 px-4 rounded-lg font-semibold transition-colors',
-                  tier.highlighted
-                    ? 'bg-primary text-white hover:bg-blue-700'
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                )}
-              >
-                {tier.cta}
-              </Link>
+               <Link
+                 href={getCtaLink(tier)}
+                 className={clsx(
+                   'block w-full text-center py-3 px-4 rounded-lg font-semibold transition-colors',
+                   tier.highlighted
+                     ? 'bg-primary text-white hover:bg-blue-700'
+                     : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                 )}
+               >
+                 {tier.cta}
+               </Link>
             </div>
           ))}
         </div>

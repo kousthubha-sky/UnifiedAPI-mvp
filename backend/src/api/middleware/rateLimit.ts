@@ -53,7 +53,12 @@ export const checkRateLimit = async (
     return;
   }
 
-  const bucketKey = `rate_limit:${apiKey}`;
+  const clientIP = request.headers['x-forwarded-for'] as string ||
+                   request.headers['x-real-ip'] as string ||
+                   (request as any).ip ||
+                   'unknown';
+
+  const bucketKey = `rate_limit:${apiKey}:${clientIP}`;
   const capacity = getCapacity(tier);
   const refillRate = getRefillRate(tier);
 
@@ -87,6 +92,7 @@ export const checkRateLimit = async (
         type: 'RATE_LIMIT_EXCEEDED',
         tier,
         apiKey: apiKey.substring(0, 8) + '...',
+        clientIP,
       });
 
       reply.status(429).send({

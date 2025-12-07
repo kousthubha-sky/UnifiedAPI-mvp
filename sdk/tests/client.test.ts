@@ -8,6 +8,7 @@ import {
   MockTransport,
   ValidationError,
   PaymentHubError,
+  NetworkError,
   CreatePaymentRequest,
   CreatePaymentResponse,
   RefundPaymentResponse,
@@ -396,6 +397,73 @@ describe('MockTransport', () => {
 
     const result = await mock.request('GET', '/unknown');
     expect(result).toEqual({ default: true });
+  });
+});
+
+describe('Retry configuration', () => {
+  it('should accept maxRetries configuration', () => {
+    const client = new UnifiedAPIClient({
+      apiKey: 'sk_test_123',
+      maxRetries: 5,
+    });
+
+    expect(client).toBeDefined();
+  });
+
+  it('should pass skipRetry option to transport', async () => {
+    const { client, mock } = UnifiedAPIClient.withMockTransport({
+      apiKey: 'sk_test_123',
+    });
+
+    mock.onCreatePayment(async () => ({
+      id: 'pay_123',
+      provider_transaction_id: 'pi_abc123',
+      amount: 1000,
+      currency: 'USD',
+      status: 'completed',
+      created_at: '2024-01-01T00:00:00Z',
+    }));
+
+    await client.payments.create(
+      {
+        amount: 1000,
+        currency: 'USD',
+        provider: 'stripe',
+        customer_id: 'cust_123',
+        payment_method: 'pm_card_visa',
+      },
+      { skipRetry: true }
+    );
+
+    expect(mock.getRequests()[0].options?.skipRetry).toBe(true);
+  });
+
+  it('should pass idempotency key to transport', async () => {
+    const { client, mock } = UnifiedAPIClient.withMockTransport({
+      apiKey: 'sk_test_123',
+    });
+
+    mock.onCreatePayment(async () => ({
+      id: 'pay_123',
+      provider_transaction_id: 'pi_abc123',
+      amount: 1000,
+      currency: 'USD',
+      status: 'completed',
+      created_at: '2024-01-01T00:00:00Z',
+    }));
+
+    await client.payments.create(
+      {
+        amount: 1000,
+        currency: 'USD',
+        provider: 'stripe',
+        customer_id: 'cust_123',
+        payment_method: 'pm_card_visa',
+      },
+      { idempotencyKey: 'idem_123' }
+    );
+
+    expect(mock.getRequests()[0].options?.idempotencyKey).toBe('idem_123');
   });
 });
 

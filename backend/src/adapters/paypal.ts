@@ -1,4 +1,4 @@
-import paypal from 'paypal-rest-sdk';
+import { Client, Environment, CheckoutPaymentIntent } from '@paypal/paypal-server-sdk';
 import {
   CreatePaymentRequest,
   CreatePaymentResponse,
@@ -13,6 +13,8 @@ import { auditLog, errorLog } from '../utils/logger.js';
 import supabase from '../utils/supabase.js';
 
 export class PayPalAdapter implements PaymentAdapter {
+  private client: Client;
+
   constructor() {
     const mode = process.env.PAYPAL_MODE || 'sandbox';
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -22,63 +24,60 @@ export class PayPalAdapter implements PaymentAdapter {
       throw new Error('PayPal credentials not provided');
     }
 
-    paypal.configure({
-      mode,
-      client_id: clientId,
-      client_secret: clientSecret,
+    this.client = new Client({
+      clientCredentialsAuthCredentials: {
+        oAuthClientId: clientId,
+        oAuthClientSecret: clientSecret,
+      },
+      environment: mode === 'production' ? Environment.Production : Environment.Sandbox,
     });
   }
 
   async createPayment(request: CreatePaymentRequest): Promise<CreatePaymentResponse> {
-    return new Promise((resolve, reject) => {
-      const payment = {
-        intent: 'sale',
-        payer: {
-          payment_method: 'credit_card',
-          payer_info: {
-            email: request.customer_id,
-          },
-        },
-        transactions: [
+    try {
+      const orderRequest = {
+        intent: CheckoutPaymentIntent.Capture,
+        purchaseUnits: [
           {
             amount: {
-              total: formatPayPalAmount(request.amount),
-              currency: request.currency.toUpperCase(),
-              details: {
-                subtotal: formatPayPalAmount(request.amount),
-              },
+              currencyCode: request.currency.toUpperCase(),
+              value: formatPayPalAmount(request.amount),
             },
             description: request.description || 'Payment',
           },
         ],
+        applicationContext: {
+          returnUrl: process.env.PAYPAL_RETURN_URL || 'http://localhost:3000/success',
+          cancelUrl: process.env.PAYPAL_CANCEL_URL || 'http://localhost:3000/cancel',
+        },
       };
 
-      paypal.payment.create(payment, (err: unknown, paypalPayment: unknown) => {
-        if (err) {
-          errorLog(err, { context: 'PayPal payment creation failed', request });
-          reject(err);
-        } else {
-          const paypalPaymentRecord = paypalPayment as Record<string, unknown>;
-          auditLog('PAYMENT_CREATED', {
-            provider: 'paypal',
-            transaction_id: paypalPaymentRecord.id,
-            amount: request.amount,
-            currency: request.currency,
-            customer_id: request.customer_id,
-          });
-
-          resolve({
-            id: String(paypalPaymentRecord.id),
-            provider_transaction_id: String(paypalPaymentRecord.id),
-            amount: request.amount,
-            currency: request.currency.toUpperCase(),
-            status: mapPayPalStatus(String(paypalPaymentRecord.state)),
-            created_at: new Date(String(paypalPaymentRecord.create_time)).toISOString(),
-            metadata: request.metadata,
-          });
-        }
+      const { result } = await this.client.getOrdersController().createOrder({
+        body: orderRequest,
+        prefer: 'return=representation',
       });
-    });
+
+      auditLog('PAYMENT_CREATED', {
+        provider: 'paypal',
+        transaction_id: result.id,
+        amount: request.amount,
+        currency: request.currency,
+        customer_id: request.customer_id,
+      });
+
+      return {
+        id: result.id,
+        provider_transaction_id: result.id,
+        amount: request.amount,
+        currency: request.currency.toUpperCase(),
+        status: mapPayPalStatus(result.status),
+        created_at: result.createTime,
+        metadata: request.metadata,
+      };
+    } catch (error) {
+      errorLog(error, { context: 'PayPal order creation failed', request });
+      throw error;
+    }
   }
 
   async refundPayment(
@@ -86,54 +85,55 @@ export class PayPalAdapter implements PaymentAdapter {
     amount?: number,
     _reason?: string
   ): Promise<RefundPaymentResponse> {
-    return new Promise((resolve, reject) => {
-      const saleId = transactionId;
+    try {
+      // First capture the order if not already captured
+      const captureRequest = {};
+      const { result: captureResult } = await this.client.getOrdersController().captureOrder({
+        id: transactionId,
+        body: captureRequest,
+        prefer: 'return=representation',
+      });
 
+      // Get the capture ID from the capture result
+      const captureId = captureResult.purchaseUnits?.[0]?.payments?.captures?.[0]?.id;
+      if (!captureId) {
+        throw new Error('Failed to capture payment for refund');
+      }
+
+      // Now refund the captured payment
       const refundRequest = amount
         ? {
             amount: {
-              currency: process.env.PAYPAL_CURRENCY || 'USD',
-              total: formatPayPalAmount(amount),
+              currencyCode: process.env.PAYPAL_CURRENCY || 'USD',
+              value: formatPayPalAmount(amount),
             },
           }
         : {};
 
-      paypal.sale.get(saleId, (err: unknown, sale: unknown) => {
-        if (err) {
-          errorLog(err, { context: 'PayPal sale lookup failed', saleId });
-          reject(err);
-        } else {
-          const saleRecord = sale as Record<string, unknown>;
-          const refund = saleRecord.refund as (
-            req: Record<string, unknown>,
-            cb: (err: unknown, resp: unknown) => void
-          ) => void;
-
-          refund(refundRequest, (refundError: unknown, refundResponse: unknown) => {
-            if (refundError) {
-              errorLog(refundError, { context: 'PayPal refund failed', saleId });
-              reject(refundError);
-            } else {
-              const refundRecord = refundResponse as Record<string, unknown>;
-              auditLog('PAYMENT_REFUNDED', {
-                provider: 'paypal',
-                original_transaction_id: transactionId,
-                refund_id: refundRecord.id,
-                amount,
-              });
-
-              resolve({
-                refund_id: String(refundRecord.id),
-                original_transaction_id: transactionId,
-                amount: extractRefundAmount(refundRecord) ?? amount ?? 0,
-                status: mapPayPalStatus(String(refundRecord.state)),
-                created_at: new Date(String(refundRecord.create_time)).toISOString(),
-              });
-            }
-          });
-        }
+      const { result: refundResult } = await this.client.getPaymentsController().refundCapturedPayment({
+        captureId,
+        body: refundRequest,
+        prefer: 'return=representation',
       });
-    });
+
+      auditLog('PAYMENT_REFUNDED', {
+        provider: 'paypal',
+        original_transaction_id: transactionId,
+        refund_id: refundResult.id,
+        amount,
+      });
+
+      return {
+        refund_id: refundResult.id,
+        original_transaction_id: transactionId,
+        amount: amount || 0,
+        status: mapPayPalStatus(refundResult.status),
+        created_at: refundResult.createTime,
+      };
+    } catch (error) {
+      errorLog(error, { context: 'PayPal refund failed', transactionId });
+      throw error;
+    }
   }
 
   async listPayments(params: ListPaymentsParams): Promise<AdapterListPaymentsResult> {
@@ -197,14 +197,13 @@ export class PayPalAdapter implements PaymentAdapter {
 }
 
 const PAYPAL_STATUS_MAP: Record<string, PaymentStatus> = {
-  created: 'pending',
-  pending: 'pending',
-  approved: 'processing',
-  completed: 'completed',
-  failed: 'failed',
-  refunded: 'refunded',
-  partially_refunded: 'refunded',
-  canceled: 'failed',
+  CREATED: 'pending',
+  APPROVED: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  CANCELLED: 'failed',
+  REFUNDED: 'refunded',
+  PARTIALLY_REFUNDED: 'refunded',
 };
 
 const formatPayPalAmount = (amount: number): string => amount.toFixed(2);
@@ -214,14 +213,5 @@ const mapPayPalStatus = (status?: string | null): PaymentStatus => {
     return 'pending';
   }
 
-  const normalized = status.toLowerCase();
-  return PAYPAL_STATUS_MAP[normalized] || 'pending';
-};
-
-const extractRefundAmount = (record: Record<string, unknown>): number | null => {
-  const amountRecord = record.amount as { total?: string } | undefined;
-  if (amountRecord?.total) {
-    return Number(amountRecord.total);
-  }
-  return null;
+  return PAYPAL_STATUS_MAP[status] || 'pending';
 };

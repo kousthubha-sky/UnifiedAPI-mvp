@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import { AuthProvider } from '@/lib/auth-context';
+import PaymentErrorBoundary from '@/components/PaymentErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'PaymentHub - Unified Payment Processing',
@@ -30,7 +31,9 @@ export default function RootLayout({
       <body className="bg-white text-gray-900">
         <AuthProvider>
           <Navbar />
-          <main>{children}</main>
+          <PaymentErrorBoundary>
+            <main>{children}</main>
+          </PaymentErrorBoundary>
         </AuthProvider>
       </body>
     </html>

@@ -1,3 +1,4 @@
+// backend/src/server.ts - Fixed version with proper logging
 import 'dotenv/config';
 import Fastify, { FastifyInstance } from 'fastify';
 import fastifyCors from '@fastify/cors';
@@ -32,7 +33,7 @@ const createServer = async (): Promise<FastifyInstance> => {
         description: 'Payment orchestration API with support for Stripe and PayPal, featuring exponential backoff, trace IDs, and comprehensive filtering',
         version: '1.0.0',
       },
-      host: process.env.API_HOST || 'localhost:3000',
+      host: process.env.API_HOST || 'localhost:3001',
       schemes: [process.env.API_SCHEME || 'http'],
       consumes: ['application/json'],
       produces: ['application/json'],
@@ -48,96 +49,6 @@ const createServer = async (): Promise<FastifyInstance> => {
           in: 'header',
         },
       },
-      definitions: {
-        CreatePaymentRequest: {
-          type: 'object',
-          required: ['currency', 'provider', 'customer_id', 'payment_method'],
-          properties: {
-            amount: { type: 'number', description: 'Payment amount in major units (e.g., dollars)' },
-            amount_in_minor: { type: 'integer', description: 'Payment amount in the smallest currency unit (e.g., cents)' },
-            amount_in_cents: { type: 'integer', description: 'Alias for amount_in_minor' },
-            amount_minor: { type: 'integer', description: 'Alias for amount_in_minor' },
-            currency: { type: 'string', description: '3-letter currency code (e.g., USD, EUR)', minLength: 3, maxLength: 3 },
-            provider: { type: 'string', enum: ['stripe', 'paypal'], description: 'Payment provider' },
-            customer_id: { type: 'string', description: 'Customer identifier' },
-            payment_method: { type: 'string', description: 'Payment method identifier' },
-            description: { type: 'string', description: 'Payment description' },
-            metadata: { type: 'object', description: 'Additional metadata' },
-          },
-        },
-        CreatePaymentResponse: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', description: 'Payment ID' },
-            provider_transaction_id: { type: 'string', description: 'Provider transaction ID' },
-            amount: { type: 'number', description: 'Payment amount' },
-            currency: { type: 'string', description: 'Currency code' },
-            status: { type: 'string', enum: ['pending', 'completed', 'failed', 'refunded', 'processing'] },
-            created_at: { type: 'string', format: 'date-time', description: 'Creation timestamp' },
-            trace_id: { type: 'string', description: 'Request trace ID' },
-            metadata: { type: 'object', description: 'Payment metadata' },
-            provider_metadata: { type: 'object', description: 'Provider-specific metadata' },
-          },
-        },
-        RefundPaymentRequest: {
-          type: 'object',
-          properties: {
-            amount: { type: 'number', description: 'Refund amount (optional, defaults to full refund)' },
-            reason: { type: 'string', description: 'Refund reason' },
-          },
-        },
-        RefundPaymentResponse: {
-          type: 'object',
-          properties: {
-            refund_id: { type: 'string', description: 'Refund ID' },
-            original_transaction_id: { type: 'string', description: 'Original payment transaction ID' },
-            amount: { type: 'number', description: 'Refund amount' },
-            status: { type: 'string', enum: ['pending', 'completed', 'failed'] },
-            created_at: { type: 'string', format: 'date-time', description: 'Refund timestamp' },
-            trace_id: { type: 'string', description: 'Request trace ID' },
-          },
-        },
-        PaymentRecord: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            provider_transaction_id: { type: 'string' },
-            provider: { type: 'string', enum: ['stripe', 'paypal'] },
-            amount: { type: 'number' },
-            currency: { type: 'string' },
-            status: { type: 'string' },
-            customer_id: { type: 'string' },
-            metadata: { type: 'object' },
-            refund_id: { type: 'string' },
-            refund_status: { type: 'string' },
-            refund_amount: { type: 'number' },
-            created_at: { type: 'string', format: 'date-time' },
-            updated_at: { type: 'string', format: 'date-time' },
-          },
-        },
-        ListPaymentsResponse: {
-          type: 'object',
-          properties: {
-            payments: {
-              type: 'array',
-              items: { $ref: 'PaymentRecord#' },
-            },
-            total: { type: 'number', description: 'Total number of payments matching filters' },
-            limit: { type: 'number', description: 'Pagination limit' },
-            offset: { type: 'number', description: 'Pagination offset' },
-            trace_id: { type: 'string', description: 'Request trace ID' },
-          },
-        },
-        ErrorResponse: {
-          type: 'object',
-          properties: {
-            error: { type: 'string', description: 'Error message' },
-            code: { type: 'string', description: 'Error code' },
-            trace_id: { type: 'string', description: 'Request trace ID' },
-            details: { type: 'object', description: 'Additional error details' },
-          },
-        },
-      },
     },
   });
 
@@ -146,17 +57,12 @@ const createServer = async (): Promise<FastifyInstance> => {
   });
 
   registerErrorHandler(app);
-
   registerLoggingMiddleware(app);
-
   registerAuthMiddleware(app);
-
   registerRateLimitMiddleware(app);
 
   await registerPaymentRoutes(app);
-
   await registerCustomerRoutes(app);
-
   await registerApiKeyRoutes(app);
 
   app.get('/health', async (_request, _reply) => {
@@ -168,14 +74,44 @@ const createServer = async (): Promise<FastifyInstance> => {
 
 const startServer = async () => {
   try {
-    await initCache();
+    // Initialize Redis
+    try {
+      await initCache();
+      console.log('✅ Redis connected');
+    } catch (cacheError) {
+      console.warn('⚠️  Redis connection failed, continuing without cache:', cacheError);
+    }
 
+    // Create server
     app = await createServer();
 
-    const port = parseInt(process.env.PORT || '3000', 10);
+    const port = parseInt(process.env.PORT || '3001', 10);
     const host = process.env.HOST || '0.0.0.0';
 
+    // Start listening
     await app.listen({ port, host });
+
+    // Log startup info to console (force stdout)
+    const banner = [
+      '',
+      '═'.repeat(70),
+      '  🚀 PaymentHub API Server Started',
+      '═'.repeat(70),
+      `  📍 Server URL:    http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`,
+      `  📚 Documentation: http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/docs`,
+      `  💚 Health Check:  http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/health`,
+      `  🔴 Redis:         Connected on ${process.env.REDIS_URL || 'redis://localhost:6379'}`,
+      `  🗄️  Supabase:      Connected to ${process.env.SUPABASE_URL?.replace('https://', '')}`,
+      '═'.repeat(70),
+      `  Environment:      ${process.env.NODE_ENV || 'development'}`,
+      `  Node Version:     ${process.version}`,
+      `  PID:              ${process.pid}`,
+      '═'.repeat(70),
+      '',
+    ].join('\n');
+
+    // Force output to stdout
+    process.stdout.write(banner);
 
     logger.info({
       type: 'SERVER_STARTED',
@@ -184,11 +120,9 @@ const startServer = async () => {
       message: `Server listening at http://${host}:${port}`,
     });
 
-    logger.info({
-      type: 'SWAGGER_DOCS',
-      message: `Swagger documentation available at http://${host}:${port}/docs`,
-    });
   } catch (error) {
+    console.error('\n❌ Failed to start server:');
+    console.error(error);
     logger.error({ error }, 'Failed to start server');
     process.exit(1);
   }

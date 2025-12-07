@@ -35,6 +35,7 @@ export const CreatePaymentResponseSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
   trace_id: z.string().optional(),
   provider_metadata: z.record(z.string(), z.any()).optional(),
+  client_secret: z.string().optional(),
 });
 
 export type CreatePaymentResponse = z.infer<typeof CreatePaymentResponseSchema>;

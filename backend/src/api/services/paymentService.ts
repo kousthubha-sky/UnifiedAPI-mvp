@@ -18,6 +18,7 @@ import { attachTraceId, translateProviderError } from '../normalizers/response.j
 import { PaymentError } from '../middleware/errorHandler.js';
 import supabase from '../../utils/supabase.js';
 import logger, { auditLogToDatabase } from '../../utils/logger.js';
+import { cacheGet, cacheSet } from '../../utils/cache.js';
 
 const RETRY_OPTIONS: Options = {
   retries: 3,
@@ -46,13 +47,27 @@ const getAdapter = (provider: PaymentProvider): PaymentAdapter => {
 };
 
 export const createPayment = async (
-  request: CreatePaymentRequest
+  request: CreatePaymentRequest,
+  idempotencyKey?: string
 ): Promise<CreatePaymentResponse> => {
   const traceId = randomUUID();
 
   const startTime = Date.now();
 
   try {
+    // Check for idempotency
+    if (idempotencyKey) {
+      const cachedResult = await cacheGet(`idempotency:${idempotencyKey}`);
+      if (cachedResult) {
+        logger.info({
+          trace_id: traceId,
+          idempotency_key: idempotencyKey,
+          message: 'Returning cached payment result for idempotency key',
+        });
+        return JSON.parse(cachedResult);
+      }
+    }
+
     const adapter = getAdapter(request.provider);
 
     const response = await pRetry(
@@ -101,7 +116,14 @@ export const createPayment = async (
       message: 'Payment created successfully',
     });
 
-    return attachTraceId(response, traceId);
+    const responseWithTrace = attachTraceId(response, traceId);
+
+    // Cache result for idempotency
+    if (idempotencyKey) {
+      await cacheSet(`idempotency:${idempotencyKey}`, JSON.stringify(responseWithTrace), 86400); // 24 hours
+    }
+
+    return responseWithTrace;
   } catch (error) {
     const latency = Date.now() - startTime;
 
@@ -228,6 +250,65 @@ export const refundPayment = async (
     });
 
     throw translateProviderError(error, traceId, ErrorCode.REFUND_FAILED, 'Refund failed');
+  }
+};
+
+export const checkPaymentStatus = async (paymentId: string): Promise<PaymentStatus> => {
+  const traceId = randomUUID();
+
+  try {
+    const { data: payment, error: fetchError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('id', paymentId)
+      .single();
+
+    if (fetchError || !payment) {
+      throw new PaymentError(ErrorCode.PAYMENT_NOT_FOUND, 'Payment not found', 404);
+    }
+
+    const paymentRecord = payment as Record<string, unknown>;
+    const currentStatus = paymentRecord.status as PaymentStatus;
+
+    // If payment is already in a final state, return current status
+    if (['completed', 'failed', 'refunded'].includes(currentStatus)) {
+      return currentStatus;
+    }
+
+    // Check with provider for updated status
+    const provider = paymentRecord.provider as PaymentProvider;
+    const providerTransactionId = paymentRecord.provider_transaction_id as string;
+
+    const adapter = getAdapter(provider);
+
+    // This would need to be implemented in adapters
+    // For now, return current status
+    // In a real implementation, you'd call adapter.getPaymentStatus(providerTransactionId)
+
+    logger.info({
+      trace_id: traceId,
+      payment_id: paymentId,
+      provider_transaction_id: providerTransactionId,
+      current_status: currentStatus,
+      message: 'Payment status checked',
+    });
+
+    return currentStatus;
+  } catch (error) {
+    logger.error({
+      trace_id: traceId,
+      payment_id: paymentId,
+      error: error instanceof Error ? error.message : String(error),
+      message: 'Failed to check payment status',
+    });
+
+    throw translateProviderError(
+      error,
+      traceId,
+      ErrorCode.INTERNAL_ERROR,
+      'Failed to check payment status',
+      500
+    );
   }
 };
 
