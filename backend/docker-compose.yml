@@ -1,0 +1,71 @@
+# Docker Compose for PaymentHub Backend
+# Optional snippet for local development
+
+services:
+  # Redis for caching and rate limiting
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # PaymentHub Backend API
+  backend:
+    build:
+      context: .
+      target: development
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - PORT=3001
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+      # Add your Supabase credentials
+      # - SUPABASE_URL=${SUPABASE_URL}
+      # - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      # Add your payment provider credentials
+      # - STRIPE_API_KEY=${STRIPE_API_KEY}
+      # - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}
+      # - PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET}
+    volumes:
+      - ./app:/app/app:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:3001/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  # Production build (use with: docker compose --profile production up)
+  backend-prod:
+    build:
+      context: .
+      target: production
+    profiles:
+      - production
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - PORT=3001
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis_data:
