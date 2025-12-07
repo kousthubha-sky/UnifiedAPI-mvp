@@ -40,6 +40,10 @@ class ErrorCode(str, Enum):
     NOT_FOUND = "NOT_FOUND"
     PAYMENT_NOT_FOUND = "PAYMENT_NOT_FOUND"
     CUSTOMER_NOT_FOUND = "CUSTOMER_NOT_FOUND"
+    API_KEY_NOT_FOUND = "API_KEY_NOT_FOUND"
+
+    # Conflict errors
+    CUSTOMER_EXISTS = "CUSTOMER_EXISTS"
 
     # Operation errors
     PAYMENT_FAILED = "PAYMENT_FAILED"
@@ -229,6 +233,23 @@ class InternalError(APIError):
             code=ErrorCode.INTERNAL_ERROR,
             message=message,
             status_code=500,
+            details=details,
+        )
+
+
+class ConflictError(APIError):
+    """Raised when a resource already exists."""
+
+    def __init__(
+        self,
+        message: str = "Resource already exists",
+        code: ErrorCode = ErrorCode.CUSTOMER_EXISTS,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            code=code,
+            message=message,
+            status_code=409,
             details=details,
         )
 

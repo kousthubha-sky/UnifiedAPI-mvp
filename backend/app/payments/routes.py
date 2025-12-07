@@ -79,7 +79,7 @@ PaymentServiceOptionalDep = Annotated[PaymentService, Depends(get_payment_servic
 
 
 @router.post(
-    "/create",
+    "",
     response_model=CreatePaymentResponse,
     summary="Create a payment",
     description=(
@@ -123,6 +123,52 @@ async def create_payment(
 
     logger.info(
         "Creating payment",
+        provider=body.provider.value,
+        amount=body.amount,
+        currency=body.currency,
+        has_idempotency_key=bool(idempotency_key),
+    )
+
+    return await service.create_payment(
+        request=body,
+        customer_id=customer_id,
+        idempotency_key=idempotency_key,
+    )
+
+
+@router.post(
+    "/create",
+    response_model=CreatePaymentResponse,
+    summary="Create a payment (alias)",
+    description=(
+        "Create a new payment (alias for POST /api/v1/payments). "
+        "Supports idempotency keys for safe retries."
+    ),
+    responses={
+        200: {"description": "Payment created successfully"},
+        400: {"description": "Invalid request or payment failed"},
+        401: {"description": "Missing or invalid API key"},
+        429: {"description": "Rate limit exceeded"},
+        502: {"description": "Provider error"},
+    },
+    include_in_schema=False,  # Hide from docs to avoid confusion
+)
+async def create_payment_alias(
+    request: Request,
+    body: CreatePaymentRequest,
+    service: PaymentServiceOptionalDep,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> CreatePaymentResponse:
+    """Create a new payment (alias endpoint).
+
+    This is an alias for POST /api/v1/payments for backward compatibility.
+    """
+    customer_id = None
+    if hasattr(request.state, "auth") and request.state.auth:
+        customer_id = request.state.auth.customer_id
+
+    logger.info(
+        "Creating payment (via /create alias)",
         provider=body.provider.value,
         amount=body.amount,
         currency=body.currency,
@@ -193,10 +239,10 @@ async def refund_payment(
 
 
 @router.get(
-    "/{payment_id}",
+    "/{payment_id}/status",
     response_model=PaymentStatusResponse,
     summary="Get payment status",
-    description="Retrieve the current status of a payment.",
+    description="Retrieve the current status of a payment (alias for GET /{id}).",
     responses={
         200: {"description": "Payment status retrieved"},
         404: {"description": "Payment not found"},
@@ -210,8 +256,8 @@ async def get_payment_status(
 ) -> PaymentStatusResponse:
     """Get the current status of a payment.
 
-    Retrieves the payment from the database and optionally syncs
-    the status with the payment provider.
+    This is an alias for GET /api/v1/payments/{id} that explicitly
+    indicates you want to check the payment status.
 
     Args:
         payment_id: ID of the payment to check.
@@ -222,6 +268,42 @@ async def get_payment_status(
     """
     logger.info(
         "Checking payment status",
+        payment_id=payment_id,
+    )
+
+    return await service.check_payment_status(payment_id)
+
+
+@router.get(
+    "/{payment_id}",
+    response_model=PaymentStatusResponse,
+    summary="Get payment details",
+    description="Retrieve the full details of a payment including status.",
+    responses={
+        200: {"description": "Payment details retrieved"},
+        404: {"description": "Payment not found"},
+        401: {"description": "Missing or invalid API key"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+async def get_payment(
+    payment_id: str,
+    service: PaymentServiceOptionalDep,
+) -> PaymentStatusResponse:
+    """Get the full details of a payment.
+
+    Retrieves the payment from the database and optionally syncs
+    the status with the payment provider.
+
+    Args:
+        payment_id: ID of the payment to check.
+        service: Payment service instance.
+
+    Returns:
+        PaymentStatusResponse with payment details.
+    """
+    logger.info(
+        "Getting payment details",
         payment_id=payment_id,
     )
 

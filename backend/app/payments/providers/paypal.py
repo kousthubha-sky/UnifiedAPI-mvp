@@ -57,9 +57,7 @@ class PayPalAdapter(PaymentProviderAdapter):
         self.mode = settings.paypal_mode
         self.default_currency = settings.paypal_currency
 
-        self.base_url = (
-            self.LIVE_BASE_URL if self.mode == "live" else self.SANDBOX_BASE_URL
-        )
+        self.base_url = self.LIVE_BASE_URL if self.mode == "live" else self.SANDBOX_BASE_URL
 
         self._access_token: str | None = None
         self._http_client: httpx.AsyncClient | None = None

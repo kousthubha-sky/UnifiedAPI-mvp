@@ -117,7 +117,10 @@ class PaymentService:
             )
             raise InvalidProviderError(
                 provider_name,
-                details={"error": str(e), "hint": f"Configure {provider_name.upper()}_* environment variables"},
+                details={
+                    "error": str(e),
+                    "hint": f"Configure {provider_name.upper()}_* environment variables",
+                },
             )
 
     async def _get_cached_response(self, idempotency_key: str) -> dict[str, Any] | None:
@@ -444,16 +447,16 @@ class PaymentService:
         try:
             provider = PaymentProvider(payment["provider"])
             adapter = self._get_adapter(provider)
-            provider_status = await adapter.get_payment_status(
-                payment["provider_transaction_id"]
-            )
+            provider_status = await adapter.get_payment_status(payment["provider_transaction_id"])
 
             # Update local status if changed
             if provider_status.status.value != payment["status"] and self.supabase:
-                self.supabase.table("payments").update({
-                    "status": provider_status.status.value,
-                    "updated_at": datetime.now(UTC).isoformat(),
-                }).eq("id", payment_id).execute()
+                self.supabase.table("payments").update(
+                    {
+                        "status": provider_status.status.value,
+                        "updated_at": datetime.now(UTC).isoformat(),
+                    }
+                ).eq("id", payment_id).execute()
                 payment["status"] = provider_status.status.value
 
         except Exception as e:
@@ -661,13 +664,15 @@ class PaymentService:
             return
 
         try:
-            self.supabase.table("payments").update({
-                "refund_id": refund_id,
-                "refund_status": refund_status,
-                "refund_amount": refund_amount,
-                "status": "refunded" if refund_status == "refunded" else "processing",
-                "updated_at": datetime.now(UTC).isoformat(),
-            }).eq("id", payment_id).execute()
+            self.supabase.table("payments").update(
+                {
+                    "refund_id": refund_id,
+                    "refund_status": refund_status,
+                    "refund_amount": refund_amount,
+                    "status": "refunded" if refund_status == "refunded" else "processing",
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }
+            ).eq("id", payment_id).execute()
 
             logger.debug(
                 "Payment refund updated in database",
