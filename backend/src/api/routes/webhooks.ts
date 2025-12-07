@@ -1,19 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import Stripe from 'stripe';
-import { Client, Environment } from '@paypal/paypal-server-sdk';
 import supabase from '../../utils/supabase.js';
 import { auditLog, errorLog } from '../../utils/logger.js';
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY || '', {
   apiVersion: '2024-06-20',
-});
-
-const paypalClient = new Client({
-  clientCredentialsAuthCredentials: {
-    oAuthClientId: process.env.PAYPAL_CLIENT_ID || '',
-    oAuthClientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
-  },
-  environment: process.env.PAYPAL_MODE === 'production' ? Environment.Production : Environment.Sandbox,
 });
 
 export async function webhooksRoutes(fastify: FastifyInstance) {

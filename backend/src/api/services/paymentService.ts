@@ -276,14 +276,10 @@ export const checkPaymentStatus = async (paymentId: string): Promise<PaymentStat
     }
 
     // Check with provider for updated status
-    const provider = paymentRecord.provider as PaymentProvider;
     const providerTransactionId = paymentRecord.provider_transaction_id as string;
 
-    const adapter = getAdapter(provider);
-
-    // This would need to be implemented in adapters
-    // For now, return current status
-    // In a real implementation, you'd call adapter.getPaymentStatus(providerTransactionId)
+    // TODO: Implement adapter.getPaymentStatus(providerTransactionId) for provider status checking
+    // For now, return current status from database
 
     logger.info({
       trace_id: traceId,
