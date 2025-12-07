@@ -59,9 +59,7 @@ def get_request_latency_ms() -> float | None:
     return round((time.perf_counter() - start_time) * 1000, 2)
 
 
-def add_trace_id(
-    _logger: logging.Logger, _method_name: str, event_dict: EventDict
-) -> EventDict:
+def add_trace_id(_logger: logging.Logger, _method_name: str, event_dict: EventDict) -> EventDict:
     """Processor to add trace_id to all log entries."""
     trace_id = trace_id_ctx.get()
     if trace_id:
@@ -69,9 +67,7 @@ def add_trace_id(
     return event_dict
 
 
-def add_timestamp(
-    _logger: logging.Logger, _method_name: str, event_dict: EventDict
-) -> EventDict:
+def add_timestamp(_logger: logging.Logger, _method_name: str, event_dict: EventDict) -> EventDict:
     """Processor to add ISO format timestamp."""
     event_dict["timestamp"] = datetime.now(UTC).isoformat()
     return event_dict
@@ -86,9 +82,7 @@ def rename_event_key(
     return event_dict
 
 
-def add_log_level(
-    _logger: logging.Logger, method_name: str, event_dict: EventDict
-) -> EventDict:
+def add_log_level(_logger: logging.Logger, method_name: str, event_dict: EventDict) -> EventDict:
     """Add log level to event dict."""
     event_dict["level"] = method_name
     return event_dict
