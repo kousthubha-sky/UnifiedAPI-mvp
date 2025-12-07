@@ -152,7 +152,21 @@ class PaymentProviderAdapter(ABC):
             True if currency is zero-decimal.
         """
         zero_decimal_currencies = {
-            "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA",
-            "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF",
+            "BIF",
+            "CLP",
+            "DJF",
+            "GNF",
+            "JPY",
+            "KMF",
+            "KRW",
+            "MGA",
+            "PYG",
+            "RWF",
+            "UGX",
+            "VND",
+            "VUV",
+            "XAF",
+            "XOF",
+            "XPF",
         }
         return currency.upper() in zero_decimal_currencies

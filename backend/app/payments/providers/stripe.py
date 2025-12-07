@@ -134,7 +134,9 @@ class StripeAdapter(PaymentProviderAdapter):
                 "Creating Stripe PaymentIntent",
                 amount=amount,
                 currency=normalized_currency,
-                payment_method=payment_method[:20] + "..." if len(payment_method) > 20 else payment_method,
+                payment_method=payment_method[:20] + "..."
+                if len(payment_method) > 20
+                else payment_method,
             )
 
             # Build metadata for Stripe
