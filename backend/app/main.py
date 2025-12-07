@@ -36,6 +36,7 @@ from app.logging import (
     set_trace_id,
     start_request_timer,
 )
+from app.payments.routes import router as payments_router
 from app.rate_limiting import rate_limit_middleware
 
 # Configure logging first
@@ -265,6 +266,9 @@ def create_app() -> FastAPI:
             "docs": "/docs",
             "health": "/health",
         }
+
+    # Register routers
+    fastapi_app.include_router(payments_router)
 
     return fastapi_app
 
