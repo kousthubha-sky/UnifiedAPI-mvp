@@ -1,126 +1,229 @@
-# Unified Payment API - Backend
+# Unified Payment API - Backend (Python/FastAPI)
 
-A robust Node.js + TypeScript backend service for processing payments across multiple providers (Stripe and PayPal) with built-in rate limiting, authentication, and comprehensive logging.
+A robust Python FastAPI backend service for processing payments across multiple providers (Stripe and PayPal) with built-in rate limiting, authentication, and comprehensive logging.
 
 ## Features
 
 - **Multi-Provider Payment Processing**: Support for Stripe and PayPal adapters
-- **Type-Safe**: Full TypeScript support with strict mode enabled
-- **REST API with Swagger UI**: Interactive API documentation
+- **Type-Safe**: Full type hints with Pydantic models and mypy strict mode
+- **REST API with OpenAPI**: Interactive Swagger UI and ReDoc documentation
 - **Authentication**: Database-backed API key validation with Redis caching
-- **Rate Limiting**: Per-tier rate limiting with Redis token bucket algorithm
-- **Structured Logging**: Pino logger with database audit trail capabilities
-- **Error Handling**: Centralized error handler with domain-specific error mapping
+- **Rate Limiting**: Per-tier rate limiting with Redis and SlowAPI
+- **Structured Logging**: Structlog with JSON output in production (Pino-compatible fields)
+- **Error Handling**: Centralized error handling with domain-specific error mapping
 - **Caching**: Redis-backed caching for performance optimization
 - **Database Integration**: Supabase PostgreSQL for schema, customers, and audit logs
-- **Customer Management**: Full customer lifecycle management with API keys
-- **Audit Logging**: Comprehensive audit logs with trace IDs and performance metrics
+- **Async First**: Built on async/await for high performance
+
+## Requirements
+
+- Python 3.11+
+- Redis (for caching and rate limiting)
+- Supabase account (for database)
 
 ## Project Structure
 
 ```
-src/
-├── server.ts                 # Fastify server bootstrap
-├── repositories/             # Database access layer
-│   ├── customerRepository.ts # Customer CRUD operations
-│   ├── apiKeyRepository.ts   # API key generation & management
-│   └── auditRepository.ts    # Audit log persistence
-├── types/
-│   └── payment.ts           # Shared DTOs and validation schemas
-├── utils/
-│   ├── logger.ts            # Pino logger configuration
-│   ├── supabase.ts          # Supabase client singleton
-│   └── cache.ts             # Redis connection helpers
-├── adapters/
-│   ├── base.ts              # Payment adapter interface
-│   ├── stripe.ts            # Stripe adapter implementation
-│   └── paypal.ts            # PayPal adapter implementation
-└── api/
-    ├── routes/
-    │   ├── customers.ts     # Customer management endpoints
-    │   ├── apiKeys.ts       # API key management endpoints
-    │   └── payments.ts      # Payment endpoints
-    └── middleware/
-        ├── auth.ts          # API key validation with caching
-        ├── logging.ts       # Request/response logging
-        ├── rateLimit.ts     # Redis-backed rate limiter with tier support
-        └── errorHandler.ts  # Error mapping and handling
-db/
-├── migrations/
-│   └── 001_initial_schema.sql # Database schema creation
-└── README.md                  # Database setup guide
+backend/
+├── app/
+│   ├── __init__.py           # Package initialization
+│   ├── main.py               # FastAPI application & lifespan
+│   ├── config.py             # Pydantic settings configuration
+│   ├── logging.py            # Structured logging (structlog)
+│   └── dependencies.py       # Dependency injection
+├── db/
+│   └── migrations/           # Database migrations
+├── tests/
+│   └── test_health.py        # Test suite
+├── pyproject.toml            # Project configuration & dependencies
+├── Dockerfile                # Container configuration
+├── docker-compose.yml        # Local development setup
+├── .env.example              # Environment template
+└── README.md                 # This file
 ```
 
-## Installation
+## Quick Start
+
+### 1. Create Virtual Environment
 
 ```bash
-npm install
+# Using uv (recommended)
+uv venv
+source .venv/bin/activate
+
+# Or using standard venv
+python -m venv .venv
+source .venv/bin/activate
+```
+
+### 2. Install Dependencies
+
+```bash
+# Using uv (fast)
+uv pip install -e ".[dev]"
+
+# Or using pip
+pip install -e ".[dev]"
+```
+
+### 3. Configure Environment
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit with your credentials
+nano .env
+```
+
+### 4. Start Development Server
+
+```bash
+# With auto-reload
+uvicorn app.main:app --reload --port 3001
+
+# Or using Python directly
+python -m app.main
+```
+
+The server will be available at:
+- **API**: http://localhost:3001
+- **Swagger UI**: http://localhost:3001/docs
+- **ReDoc**: http://localhost:3001/redoc
+- **Health Check**: http://localhost:3001/health
+
+## Development Commands
+
+### Run Server
+
+```bash
+# Development with hot reload
+uvicorn app.main:app --reload --port 3001
+
+# Production mode
+uvicorn app.main:app --host 0.0.0.0 --port 3001 --workers 4
+```
+
+### Run Tests
+
+```bash
+# Run all tests
+pytest
+
+# With coverage
+pytest --cov=app --cov-report=html
+
+# Verbose output
+pytest -v
+```
+
+### Linting & Formatting
+
+```bash
+# Lint with Ruff
+ruff check app tests
+
+# Fix lint issues
+ruff check --fix app tests
+
+# Format code
+ruff format app tests
+```
+
+### Type Checking
+
+```bash
+# Run mypy
+mypy app
+```
+
+## Docker
+
+### Build Image
+
+```bash
+# Production build
+docker build -t payment-hub-backend .
+
+# Development build
+docker build --target development -t payment-hub-backend:dev .
+```
+
+### Run Container
+
+```bash
+# Run production container
+docker run -p 3001:3001 \
+  -e REDIS_URL=redis://host.docker.internal:6379 \
+  -e SUPABASE_URL=https://your-project.supabase.co \
+  -e SUPABASE_ANON_KEY=your-key \
+  payment-hub-backend
+```
+
+### Docker Compose
+
+```bash
+# Start all services (backend + Redis)
+docker compose up
+
+# Start in background
+docker compose up -d
+
+# View logs
+docker compose logs -f backend
+
+# Stop services
+docker compose down
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure the required environment variables:
+### Environment Variables
 
-```bash
-cp .env.example .env
+All configuration is via environment variables. The application maintains backward compatibility with the Node.js backend's environment variable names.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NODE_ENV` | Environment (development/production/test) | `development` |
+| `LOG_LEVEL` | Logging level (debug/info/warning/error) | `info` |
+| `PORT` | Server port | `3001` |
+| `HOST` | Server host | `0.0.0.0` |
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
+| `SUPABASE_URL` | Supabase project URL | - |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key | - |
+| `STRIPE_API_KEY` | Stripe API key | - |
+| `PAYPAL_CLIENT_ID` | PayPal client ID | - |
+| `PAYPAL_CLIENT_SECRET` | PayPal client secret | - |
+| `CORS_ORIGIN` | CORS allowed origins | `*` |
+
+See `.env.example` for a complete list.
+
+### Logging
+
+The application uses structured logging with fields compatible with the previous Pino-based logging:
+
+| Field | Description |
+|-------|-------------|
+| `type` | Log type (REQUEST, RESPONSE, AUDIT, ERROR) |
+| `trace_id` | Request trace ID (from `X-Trace-Id` header or generated) |
+| `timestamp` | ISO 8601 timestamp |
+| `level` | Log level |
+| `method` | HTTP method |
+| `url` | Request URL |
+| `status_code` | Response status code |
+| `latency_ms` | Request latency in milliseconds |
+| `duration` | Human-readable duration (e.g., "42.5ms") |
+| `ip` | Client IP address |
+
+**Development Output** (pretty-printed):
+```
+2024-01-15 10:30:45 [info     ] Request received    method=GET url=/health ip=127.0.0.1 trace_id=abc-123
+2024-01-15 10:30:45 [info     ] Response sent       method=GET url=/health status_code=200 latency_ms=1.5
 ```
 
-### Required Environment Variables
-
-- `STRIPE_API_KEY`: Stripe API key
-- `PAYPAL_CLIENT_ID`: PayPal client ID
-- `PAYPAL_CLIENT_SECRET`: PayPal client secret
-- `SUPABASE_URL`: Supabase project URL
-- `SUPABASE_ANON_KEY`: Supabase anonymous key
-- `REDIS_URL`: Redis connection URL
-
-### Optional Environment Variables
-
-- `NODE_ENV`: Environment (development/production)
-- `LOG_LEVEL`: Logging level (debug/info/warn/error)
-- `PORT`: Server port (default: 3000)
-- `HOST`: Server host (default: 0.0.0.0)
-- `ALLOWED_API_KEYS`: Comma-separated list of allowed API keys
-- `CORS_ORIGIN`: CORS origin (default: *)
-
-## Development
-
-Start the development server with hot reload:
-
-```bash
-npm run dev
-```
-
-## Building
-
-Build TypeScript to JavaScript:
-
-```bash
-npm run build
-```
-
-## Running
-
-Start the production server:
-
-```bash
-npm start
-```
-
-## Linting
-
-Run ESLint:
-
-```bash
-npm run lint
-```
-
-## Testing
-
-Run tests:
-
-```bash
-npm test
+**Production Output** (JSON):
+```json
+{"timestamp":"2024-01-15T10:30:45.123456+00:00","level":"info","type":"RESPONSE","method":"GET","url":"/health","status_code":200,"latency_ms":1.5,"trace_id":"abc-123"}
 ```
 
 ## API Endpoints
@@ -133,186 +236,27 @@ GET /health
 
 Returns server health status.
 
-### Customer Management
-
-#### Create Customer
-
-```
-POST /api/v1/customers
-
-{
-  "email": "customer@example.com",
-  "tier": "starter"  # Optional: starter, growth, scale
-}
-```
-
-Response:
+**Response**:
 ```json
 {
-  "id": "uuid",
-  "email": "customer@example.com",
-  "tier": "starter",
-  "created_at": "2024-01-01T00:00:00Z"
+  "status": "ok",
+  "timestamp": "2024-01-15T10:30:45.123456+00:00"
 }
 ```
 
-#### Get Customer Profile
+### API Documentation
 
-```
-GET /api/v1/customers/:id
-X-API-Key: your-api-key
-```
-
-#### Update Customer Profile
-
-```
-PATCH /api/v1/customers/:id
-X-API-Key: your-api-key
-
-{
-  "tier": "growth",
-  "stripe_account_id": "acct_123",
-  "paypal_account_id": "acct_456"
-}
-```
-
-### API Key Management
-
-#### Generate API Key
-
-```
-POST /api/v1/api-keys
-X-API-Key: your-api-key
-
-{
-  "name": "Production Key"  # Optional
-}
-```
-
-Response:
-```json
-{
-  "id": "uuid",
-  "key": "sk_...",
-  "name": "Production Key",
-  "is_active": true,
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-#### List API Keys
-
-```
-GET /api/v1/api-keys
-X-API-Key: your-api-key
-```
-
-#### Revoke API Key
-
-```
-PATCH /api/v1/api-keys/:id
-X-API-Key: your-api-key
-
-{
-  "action": "revoke"
-}
-```
-
-#### Rotate API Key
-
-```
-PATCH /api/v1/api-keys/:id
-X-API-Key: your-api-key
-
-{
-  "action": "rotate"
-}
-```
-
-Response:
-```json
-{
-  "id": "uuid",
-  "key": "sk_...",  # New key
-  "name": "Production Key",
-  "is_active": true,
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-#### Delete API Key
-
-```
-DELETE /api/v1/api-keys/:id
-X-API-Key: your-api-key
-```
-
-### Payment Operations
-
-#### Create Payment
-
-```
-POST /payments
-X-API-Key: your-api-key
-
-{
-  "amount": 100.00,
-  "currency": "USD",
-  "provider": "stripe",
-  "description": "Payment description",
-  "customer_id": "cust_123",
-  "payment_method": "tok_visa",
-  "metadata": {
-    "order_id": "order_456"
-  }
-}
-```
-
-#### Refund Payment
-
-```
-POST /payments/:id/refund
-X-API-Key: your-api-key
-
-{
-  "reason": "customer_request",
-  "amount": 50.00
-}
-```
-
-## API Documentation
-
-Once the server is running, visit http://localhost:3000/docs for interactive Swagger documentation.
-
-## Middleware Order
-
-Middleware is executed in the following order:
-
-1. Error Handler (registered first to catch all errors)
-2. Logging Middleware (logs all requests/responses)
-3. Authentication Middleware (validates API keys)
-4. Rate Limiting Middleware (enforces rate limits)
-5. Route Handlers
-
-## TypeScript Configuration
-
-The project uses `NodeNext` module resolution to enforce `.js` extensions on all imports. This ensures compatibility with ES modules and future-proof code.
+| Endpoint | Description |
+|----------|-------------|
+| `GET /docs` | Swagger UI |
+| `GET /redoc` | ReDoc |
+| `GET /openapi.json` | OpenAPI schema |
 
 ## Database Setup
 
-### Supabase Configuration
+The database schema remains the same as the Node.js backend. Run the migrations from `db/migrations/001_initial_schema.sql` in your Supabase SQL editor.
 
-1. Create a Supabase project at https://supabase.com
-2. Run the migrations from `db/migrations/001_initial_schema.sql` in the Supabase SQL editor
-3. Add your Supabase credentials to `.env`:
-   ```
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_ANON_KEY=your-anon-key
-   ```
-
-### Database Schema
-
-The application uses the following Supabase tables:
+### Tables
 
 - **customers**: Customer accounts and subscription tiers
 - **api_keys**: API keys for authentication
@@ -320,94 +264,95 @@ The application uses the following Supabase tables:
 - **usage_stats**: Daily usage statistics per customer
 - **payments**: Payment transaction records
 
-For complete schema details, see `db/README.md`.
+See `db/README.md` for complete schema details.
 
-### Rate Limiting Tiers
+## Architecture
 
-```
-starter:  1,000  requests/hour
-growth:   5,000  requests/hour
-scale:   20,000  requests/hour
-admin:   Unlimited
-```
+### Application Lifespan
 
-## Error Codes
+The FastAPI application uses a lifespan context manager for proper resource management:
 
-Common error codes returned by the API:
+1. **Startup**:
+   - Configure structured logging
+   - Initialize Redis connection
+   - Initialize Supabase client
+   - Log startup banner
 
-- `MISSING_API_KEY`: API key header not provided
-- `INVALID_API_KEY`: API key is invalid or revoked
-- `INACTIVE_API_KEY`: API key is marked as inactive
-- `RATE_LIMIT_EXCEEDED`: Rate limit exceeded for this API key
-- `VALIDATION_ERROR`: Request payload validation failed
-- `INVALID_PROVIDER`: Invalid payment provider specified
-- `PAYMENT_NOT_FOUND`: Payment transaction not found
-- `INTERNAL_ERROR`: Internal server error
+2. **Shutdown**:
+   - Close Redis connection
+   - Clean up Supabase client
 
-## Logging
+### Dependency Injection
 
-The application uses Pino for structured logging. In development mode, logs are pretty-printed. In production, logs are in JSON format suitable for log aggregation services.
+Dependencies are provided via FastAPI's dependency injection system:
 
-### Audit Logs
+```python
+from app.dependencies import RedisDep, SupabaseDep, TraceIdDep
 
-Audit logs are automatically generated for payment operations:
-
-```json
-{
-  "type": "AUDIT",
-  "action": "PAYMENT_CREATED",
-  "provider": "stripe",
-  "transaction_id": "ch_123",
-  "amount": 100,
-  "currency": "USD",
-  "customer_id": "cust_123",
-  "timestamp": "2024-01-01T12:00:00.000Z"
-}
+@app.get("/example")
+async def example(
+    redis: RedisDep,
+    supabase: SupabaseDep,
+    trace_id: TraceIdDep,
+):
+    ...
 ```
 
-## Rate Limiting
+### Request Tracing
 
-Rate limiting uses a token bucket algorithm with Redis:
+Every request includes a trace ID for distributed tracing:
 
-- Per-tier limits (see above)
-- Refill interval: 1 minute
-- Tracked per API Key in Redis
-- Response headers include X-RateLimit-* information
+1. Check `X-Trace-Id` or `X-Request-Id` header
+2. Generate UUID if not provided
+3. Include in all log entries
+4. Return in `X-Trace-Id` response header
 
-### Rate Limit Headers
+## Migration from Node.js
 
+This FastAPI backend is a drop-in replacement for the Node.js/Fastify backend:
+
+- Same port (3001) and endpoints
+- Same environment variable names
+- Same database schema
+- Compatible logging format
+- Same CORS configuration
+
+The frontend and SDK continue to work without changes.
+
+## Troubleshooting
+
+### Redis Connection Failed
+
+If Redis is not available, the server will start with a warning:
 ```
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1704067200
+WARNING: Redis connection failed, continuing without cache
 ```
 
-## API Key Flow
+For full functionality, ensure Redis is running:
+```bash
+# Using Docker
+docker run -d -p 6379:6379 redis:7-alpine
 
-1. **Create Customer**: POST /api/v1/customers
-2. **Generate API Key**: POST /api/v1/api-keys (requires authentication)
-3. **Use API Key**: Include `X-API-Key: your-key` in requests
-4. **Manage Keys**: List, revoke, rotate, or delete keys as needed
+# Or install locally
+redis-server
+```
 
-## Authentication Flow
+### Supabase Not Configured
 
-1. Client sends request with `X-API-Key` header
-2. Auth middleware validates the key against the database
-3. Customer and tier information are cached in Redis for 1 hour
-4. Rate limiting is applied based on customer tier
-5. Request proceeds with customerId and tier attached to request object
+Without Supabase credentials, database features will be unavailable:
+```
+WARNING: Supabase not configured
+```
 
-## Audit Logging
+Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in your `.env` file.
 
-All API requests are logged to the `audit_logs` table with:
+### Import Errors
 
-- Trace ID (for request tracing)
-- Customer ID
-- Endpoint and HTTP method
-- Response status code
-- Request latency
-- Error messages (if applicable)
-- Request/response bodies (optional)
+Ensure you're running from the backend directory with the virtual environment activated:
+```bash
+cd backend
+source .venv/bin/activate
+```
 
 ## License
 
