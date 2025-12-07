@@ -14,12 +14,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from app import __version__
+from app.auth import authenticate_request
 from app.config import get_settings
 from app.dependencies import (
     close_redis,
     close_supabase,
     init_redis,
     init_supabase,
+)
+from app.errors import (
+    APIError,
+    api_error_handler,
+    create_error_response,
 )
 from app.logging import (
     configure_logging,
@@ -30,6 +36,7 @@ from app.logging import (
     set_trace_id,
     start_request_timer,
 )
+from app.rate_limiting import rate_limit_middleware
 
 # Configure logging first
 configure_logging()
@@ -81,19 +88,19 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Print startup banner
     banner = f"""
-{'═' * 70}
+{"═" * 70}
   🚀 PaymentHub API Server Started
-{'═' * 70}
-  📍 Server URL:    http://{settings.host if settings.host != '0.0.0.0' else 'localhost'}:{settings.port}
-  📚 Documentation: http://{settings.host if settings.host != '0.0.0.0' else 'localhost'}:{settings.port}/docs
-  💚 Health Check:  http://{settings.host if settings.host != '0.0.0.0' else 'localhost'}:{settings.port}/health
+{"═" * 70}
+  📍 Server URL:    http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}
+  📚 Documentation: http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}/docs
+  💚 Health Check:  http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}/health
   🔴 Redis:         {redis_status.capitalize()} on {settings.redis_url}
-  🗄️  Supabase:      {supabase_status.capitalize()}{' - ' + settings.supabase_url.replace('https://', '') if settings.supabase_url else ''}
-{'═' * 70}
+  🗄️  Supabase:      {supabase_status.capitalize()}{" - " + settings.supabase_url.replace("https://", "") if settings.supabase_url else ""}
+{"═" * 70}
   Environment:      {settings.environment}
   Python Version:   {sys.version.split()[0]}
   Log Level:        {settings.log_level}
-{'═' * 70}
+{"═" * 70}
 """
     print(banner)
 
@@ -146,13 +153,22 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=settings.cors_methods_list,
         allow_headers=["*"],
-        expose_headers=["X-Trace-Id", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+        expose_headers=[
+            "X-Trace-Id",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+        ],
     )
 
-    # Request/Response logging middleware
+    # Register exception handlers
+    fastapi_app.add_exception_handler(APIError, api_error_handler)
+
+    # Combined logging, auth, and rate limiting middleware
+    # Note: Middleware runs in reverse order of registration
     @fastapi_app.middleware("http")
-    async def logging_middleware(request: Request, call_next: Any) -> Response:
-        """Log all requests and responses with timing."""
+    async def combined_middleware(request: Request, call_next: Any) -> Response:
+        """Combined middleware for logging, authentication, and rate limiting."""
         # Extract or generate trace ID
         trace_id = request.headers.get("X-Trace-Id") or request.headers.get("X-Request-Id")
         set_trace_id(trace_id)
@@ -174,8 +190,29 @@ def create_app() -> FastAPI:
             ip=client_ip,
         )
 
-        # Process request
-        response: Response = await call_next(request)
+        # Authenticate request (sets request.state.auth)
+        try:
+            await authenticate_request(
+                request=request,
+                settings=settings,
+                x_api_key=request.headers.get("X-API-Key"),
+            )
+        except APIError as auth_error:
+            # Return auth error response
+            from app.logging import get_trace_id
+
+            response = create_error_response(
+                code=auth_error.code,
+                message=auth_error.message,
+                status_code=auth_error.status_code,
+                details=auth_error.details,
+                trace_id=get_trace_id(),
+            )
+            response.headers["X-Trace-Id"] = get_trace_id()
+            return response
+
+        # Apply rate limiting (after auth, so we have customer context)
+        response = await rate_limit_middleware(request, call_next)
 
         # Log response with latency
         latency_ms = get_request_latency_ms()
@@ -188,6 +225,7 @@ def create_app() -> FastAPI:
 
         # Add trace ID to response headers
         from app.logging import get_trace_id
+
         response.headers["X-Trace-Id"] = get_trace_id()
 
         return response
