@@ -386,6 +386,7 @@ def create_app() -> FastAPI:
                 request=request,
                 settings=settings,
                 x_api_key=request.headers.get("X-API-Key"),
+                authorization=request.headers.get("Authorization"),
             )
         except APIError as auth_error:
             # Return auth error response

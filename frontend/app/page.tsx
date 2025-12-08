@@ -4,6 +4,7 @@ import FeatureHighlights from '@/components/FeatureHighlights';
 import Pricing from '@/components/Pricing';
 import Testimonials from '@/components/Testimonials';
 import Link from 'next/link';
+import { SignUpButton } from '@clerk/nextjs';
 
 export default function Home() {
   return (
@@ -25,12 +26,11 @@ export default function Home() {
             and integrate with just a few lines of code.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/signup"
-              className="inline-flex items-center justify-center px-8 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono"
-            >
-              Create Free Account
-            </Link>
+            <SignUpButton>
+              <button className="inline-flex items-center justify-center px-8 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono">
+                Create Free Account
+              </button>
+            </SignUpButton>
             <Link
               href="/docs"
               className="inline-flex items-center justify-center px-8 py-3 border-2 border-black text-black font-bold rounded-lg hover:bg-black hover:text-primary transition-colors font-mono"

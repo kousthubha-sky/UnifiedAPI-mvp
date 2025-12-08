@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { SignUpButton } from '@clerk/nextjs';
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth-context';
 
@@ -149,17 +150,18 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              <Link
-                href={getCtaLink(tier)}
-                className={clsx(
-                  'block w-full text-center py-3 px-4 rounded-lg font-bold transition-colors font-mono',
-                  tier.highlighted
-                    ? 'bg-primary text-black hover:bg-[#00dd77]'
-                    : 'bg-[#1a1a1a] border border-primary text-primary hover:bg-primary hover:text-black'
-                )}
-              >
-                {tier.cta}
-              </Link>
+              <SignUpButton>
+                <button
+                  className={clsx(
+                    'block w-full text-center py-3 px-4 rounded-lg font-bold transition-colors font-mono',
+                    tier.highlighted
+                      ? 'bg-primary text-black hover:bg-[#00dd77]'
+                      : 'bg-[#1a1a1a] border border-primary text-primary hover:bg-primary hover:text-black'
+                  )}
+                >
+                  {tier.cta}
+                </button>
+              </SignUpButton>
             </div>
           ))}
         </div>

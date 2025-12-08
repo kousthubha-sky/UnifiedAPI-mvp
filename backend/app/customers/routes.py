@@ -104,8 +104,10 @@ async def create_customer(
         raise InternalError(message="Database not available")
 
     try:
+        print(f"Creating customer for email: {body.email}, user_id: {body.user_id}")
         # Check if customer already exists
         existing = supabase.table("customers").select("id, user_id").eq("email", body.email).execute()
+        print(f"Existing check result: {existing.data}")
 
         if existing.data and len(existing.data) > 0:
             # Return existing customer
@@ -138,12 +140,15 @@ async def create_customer(
             if body.paypal_account_id:
                 insert_data["paypal_account_id"] = body.paypal_account_id
 
+            print(f"Inserting new customer: {insert_data}")
             response = supabase.table("customers").insert(insert_data).execute()
+            print(f"Insert result: {response.data}")
 
             if not response.data or len(response.data) == 0:
                 raise InternalError(message="Failed to create customer")
 
             customer_data = response.data[0]
+            print(f"Customer created: {customer_data}")
             logger.info(
                 "Customer created",
                 customer_id=customer_data["id"],

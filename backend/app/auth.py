@@ -172,15 +172,11 @@ async def _validate_clerk_token(supabase_client: Any, token: str) -> dict[str, A
         payload = jwt.decode(token, options={"verify_signature": False})
         user_id = payload.get("sub")
         email = payload.get("email")
-        print(f"Clerk token payload: user_id={user_id}, email={email}")
-        if not user_id or not email:
-            print("Missing user_id or email in token")
+        if not user_id:
             return None
 
         # First try by user_id
-        print(f"Querying customer by user_id: {user_id}")
         response = supabase_client.table("customers").select("id, tier").eq("user_id", user_id).single().execute()
-        print(f"Query result: data={response.data}")
 
         if response.data:
             return {
@@ -188,24 +184,20 @@ async def _validate_clerk_token(supabase_client: Any, token: str) -> dict[str, A
                 "tier": response.data["tier"],
             }
 
-        # If not found, try by email (for existing customers)
-        print(f"Querying customer by email: {email}")
-        response = supabase_client.table("customers").select("id, tier").eq("email", email).single().execute()
-        print(f"Email query result: data={response.data}")
+        # If not found, and email available, try by email (for existing customers)
+        if email:
+            response = supabase_client.table("customers").select("id, tier").eq("email", email).single().execute()
 
-        if response.data:
-            # Update user_id for future
-            supabase_client.table("customers").update({"user_id": user_id}).eq("id", response.data["id"]).execute()
-            print(f"Updated existing customer with user_id: {response.data['id']}")
-            return {
-                "customer_id": response.data["id"],
-                "tier": response.data["tier"],
-            }
-
-        print(f"Customer not found for Clerk user: user_id={user_id}, email={email}")
+            if response.data:
+                # Update user_id for future
+                supabase_client.table("customers").update({"user_id": user_id}).eq("id", response.data["id"]).execute()
+                return {
+                    "customer_id": response.data["id"],
+                    "tier": response.data["tier"],
+                }
 
     except Exception as e:
-        print(f"Clerk token validation failed: {str(e)}")
+        pass
 
     return None
 
@@ -266,21 +258,23 @@ async def _validate_api_key_supabase(supabase_client: Any, api_key: str) -> dict
 async def authenticate_request(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
-    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
-    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+    x_api_key: str | None = None,
+    authorization: str | None = None,
 ) -> AuthContext:
     """Authenticate an incoming request.
 
     This is the main authentication dependency. It:
     1. Checks if the route is public (skips auth)
-    2. Validates bootstrap key for allowed routes
-    3. Checks static ALLOWED_API_KEYS
-    4. Validates against Supabase with Redis caching
+    2. Checks Clerk JWT token (if Authorization header present)
+    3. Validates bootstrap key for allowed routes
+    4. Checks static ALLOWED_API_KEYS
+    5. Validates against Supabase with Redis caching
 
     Args:
         request: The FastAPI request
         settings: Application settings
         x_api_key: API key from header
+        authorization: Authorization header (for Clerk JWT)
 
     Returns:
         AuthContext with authentication details
@@ -304,7 +298,33 @@ async def authenticate_request(
         request.state.auth = auth_ctx
         return auth_ctx
 
-    # Require API key for non-public routes
+    # Try to get Supabase client for Clerk JWT validation
+    supabase_client = None
+    try:
+        from app.dependencies import _supabase_client
+        supabase_client = _supabase_client
+    except ImportError:
+        pass
+
+    # CHECK CLERK JWT FIRST (before requiring x-api-key)
+    if not x_api_key and authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+        validated_data = await _validate_clerk_token(supabase_client, token)
+        if validated_data:
+            auth_ctx = AuthContext(
+                customer_id=validated_data["customer_id"],
+                tier=validated_data["tier"],
+                is_bootstrap=False,
+                is_static_key=False,
+            )
+            request.state.auth = auth_ctx
+            logger.debug(
+                "Clerk JWT authentication success",
+                customer_id=validated_data['customer_id']
+            )
+            return auth_ctx
+
+    # Require API key for non-public routes (if no valid JWT found)
     if not x_api_key:
         raise MissingAPIKeyError()
 
@@ -343,15 +363,11 @@ async def authenticate_request(
         )
         return auth_ctx
 
-    # Try to get Redis and Supabase clients
+    # Try to get Redis client
     redis_client = None
-    supabase_client = None
-
     try:
-        from app.dependencies import _redis_client, _supabase_client
-
+        from app.dependencies import _redis_client
         redis_client = _redis_client
-        supabase_client = _supabase_client
     except ImportError:
         pass
 
@@ -394,27 +410,8 @@ async def authenticate_request(
         )
         return auth_ctx
 
-    # Check Clerk JWT
-    print(f"Auth check: x_api_key={bool(x_api_key)}, authorization={bool(authorization)}")
-    if not x_api_key and authorization and authorization.startswith("Bearer "):
-        print("Trying Clerk auth")
-        token = authorization[7:]
-        validated_data = await _validate_clerk_token(supabase_client, token)
-        if validated_data:
-            auth_ctx = AuthContext(
-                customer_id=validated_data["customer_id"],
-                tier=validated_data["tier"],
-                is_bootstrap=False,
-                is_static_key=False,
-            )
-            request.state.auth = auth_ctx
-            print(f"Clerk JWT authentication success: customer_id={validated_data['customer_id']}")
-            return auth_ctx
-
     # API key is invalid
-    print("Auth failed, raising InvalidAPIKeyError")
     raise InvalidAPIKeyError()
-
 
 def get_auth_context(request: Request) -> AuthContext:
     """Get the authentication context from request state.

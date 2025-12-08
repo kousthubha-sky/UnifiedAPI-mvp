@@ -1,5 +1,10 @@
 'use client';
 
+'use client';
+
+import Link from 'next/link';
+import { SignUpButton } from '@clerk/nextjs';
+
 const highlights = [
   {
     title: 'One API',
@@ -42,10 +47,10 @@ const CodeComparison = () => {
     <div className="grid md:grid-cols-2 gap-6">
       {/* Without OneRouter */}
       <div className="terminal-window border-[#ff3366]">
-        <div className="bg-[#1a1a1a] px-4 py-2 border-b border-[#ff3366]">
+        <div className="bg-[#1a1a1a] px-4 py-2 border-b rounded-t-xl border-[#ff3366]">
           <span className="text-xs font-mono text-[#ff3366]">❌ Without OneRouter</span>
         </div>
-        <pre className="p-4 text-xs font-mono text-white overflow-x-auto">
+        <pre className="p-4 text-xs font-mono bg-[#080808] text-white overflow-x-auto">
 {`// Multiple SDK imports
 import Stripe from 'stripe';
 import { PayPal } from 'paypal-sdk';
@@ -62,10 +67,10 @@ await paypal.payments.create({...});`}
 
       {/* With OneRouter */}
       <div className="terminal-window border-primary">
-        <div className="bg-[#1a1a1a] px-4 py-2 border-b border-primary">
+        <div className="bg-[#1a1a1a] px-4 py-2 border-b rounded-t-xl border-primary">
           <span className="text-xs font-mono text-primary">✓ With OneRouter</span>
         </div>
-        <pre className="p-4 text-xs font-mono text-white overflow-x-auto">
+        <pre className="p-4 text-xs font-mono bg-[#080808] text-white overflow-x-auto">
 {`// Single import
 import { OneRouter } from '@OneRouter/sdk';
 
@@ -155,13 +160,12 @@ export default function FeatureHighlights() {
                 <p className="text-black/80 mb-6 font-mono">
                   Join thousands of developers who trust OneRouter for their payment infrastructure.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <a
-                    href="/signup"
-                    className="inline-flex items-center justify-center px-6 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono"
-                  >
-                    Start Free Trial
-                  </a>
+                 <div className="flex flex-col sm:flex-row gap-4">
+                   <SignUpButton>
+                     <button className="inline-flex items-center justify-center px-6 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono">
+                       Start Free Trial
+                     </button>
+                   </SignUpButton>
                   <a
                     href="/docs"
                     className="inline-flex items-center justify-center px-6 py-3 border-2 border-black text-black font-bold rounded-lg hover:bg-black hover:text-primary transition-colors font-mono"

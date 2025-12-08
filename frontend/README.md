@@ -188,28 +188,22 @@ Protected multi-tab dashboard:
 
 ![Dashboard](https://via.placeholder.com/600x300?text=Dashboard)
 
-### Login (`/login`)
+### Authentication
 
-Authentication page with:
-- Email/password login
-- Magic link (passwordless) option
-- Link to signup
-
-### Signup (`/signup`)
-
-Registration page with:
-- Email/password registration
-- Password strength requirements
-- Plan selection support via query params
+User authentication is handled by Clerk, providing:
+- Secure login/signup through modal dialogs
+- Email/password and social authentication
+- Magic link (passwordless) options
+- Automatic customer record creation in backend
 
 ## Authentication Flow
 
-1. User visits `/signup` or `/login`
-2. Creates account via Supabase Auth
-3. Customer record created in backend
-4. Session stored in Supabase
-5. Auth context provides user state to components
-6. Protected routes redirect to `/login` if unauthenticated
+1. User clicks login/signup buttons (opens Clerk modal)
+2. Authenticates via Clerk
+3. Customer record auto-created in Supabase
+4. API key generated automatically
+5. User redirected to dashboard
+6. Auth context provides user state to components
 
 ## API Integration
 

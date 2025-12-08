@@ -166,36 +166,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!userLoaded) return;
 
       try {
-        // Check localStorage for existing API key
-        const storedKey = getStoredApiKey();
-        const storedCustomerId = getStoredCustomerId();
+        if (user) {
+          // Check localStorage for existing API key
+          const storedKey = getStoredApiKey();
+          const storedCustomerId = getStoredCustomerId();
 
-        if (storedKey && storedCustomerId) {
-          // Set API key in client
-          apiClient.setApiKey(storedKey);
+          if (storedKey && storedCustomerId) {
+            // Verify stored data
+            try {
+              const headers = await getAuthHeaders();
+              const response = await fetch(`${API_BASE_URL}/api/v1/customers/${storedCustomerId}`, { headers });
 
-          // Try to fetch customer data with stored API key
-          try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/customers/${storedCustomerId}`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': storedKey,
-              },
-            });
-
-            if (response.ok) {
-              const customerData = await response.json();
-              setCustomer(customerData);
-            } else if (response.status === 401) {
-              // API key is invalid, clear auth data
+              if (response.ok) {
+                const customerData = await response.json();
+                setCustomer(customerData);
+                apiClient.setApiKey(storedKey);
+              } else {
+                // Invalid, clear
+                clearStoredApiKey();
+                clearStoredCustomerId();
+                setCustomer(null);
+                setApiKeys([]);
+                apiClient.setApiKey(null);
+              }
+            } catch (err) {
+              console.error('Failed to verify stored auth:', err);
               clearStoredApiKey();
               clearStoredCustomerId();
-              setCustomer(null);
-              setApiKeys([]);
-              apiClient.setApiKey(null);
             }
-          } catch (err) {
-            console.error('Failed to fetch customer on init:', err);
+          }
+
+          // If no customer, create it
+          if (!storedCustomerId) {
+            const email = user.emailAddresses?.[0]?.emailAddress || '';
+            const userId = user?.id || '';
+            const { customerId, error } = await createBackendCustomer(email, userId);
+            if (customerId) {
+              setStoredCustomerId(customerId);
+              // Generate initial API key
+              const { key } = await generateInitialApiKey(customerId);
+              if (key) {
+                setStoredApiKey(key);
+                apiClient.setApiKey(key);
+              }
+              // Fetch customer data
+              await refreshCustomer();
+            }
+          }
+
+          // Refresh API keys
+          if (getStoredCustomerId()) {
+            await refreshApiKeys();
           }
         }
       } catch (err) {
@@ -206,7 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
-  }, [userLoaded]);
+  }, [userLoaded, user]);
 
 
 
@@ -220,18 +241,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshCustomer, refreshApiKeys]);
 
   // Create customer in backend after getting customer ID
-  const createBackendCustomer = async (email: string): Promise<{ customerId: string | null; error: string | null }> => {
+  const createBackendCustomer = async (email: string, userId: string): Promise<{ customerId: string | null; error: string | null }> => {
     try {
       const headers = await getAuthHeaders();
-      console.log('Creating customer with user_id:', user?.id);
       const response = await fetch(`${API_BASE_URL}/api/v1/customers`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ email, user_id: user?.id }),
+        body: JSON.stringify({ email, user_id: userId }),
       });
 
       const data = await response.json();
-      console.log('Customer creation response:', response.status, data);
 
       if (!response.ok) {
         return { customerId: null, error: data.error || 'Failed to create customer' };
@@ -240,7 +259,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { customerId: data.id, error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create customer';
-      console.error('Customer creation error:', err);
       return { customerId: null, error: message };
     }
   };
@@ -277,42 +295,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       setError(null);
-
-      // Step 1: Sign up with Clerk
       const result = await clerkSignUp.create({
         emailAddress: email,
         password,
       });
 
       if (result.status === 'complete') {
-        // User is signed up and signed in
-        // Step 2: Create customer in backend
-        const { customerId, error: customerError } = await createBackendCustomer(email);
-
+        // User is signed in
+        // Ensure we have customer record
+        const { customerId, error: customerError } = await createBackendCustomer(email, user.id);
         if (customerError && !customerId) {
-          console.error('Failed to create customer record:', customerError);
-          // Continue anyway - customer may already exist
+          return { error: customerError };
         }
 
-        // Step 3: If we got a customer ID, store it and generate API key
         if (customerId) {
+          console.log('Customer ID set:', customerId);
           setStoredCustomerId(customerId);
-
-          // Step 4: Generate initial API key using bootstrap key
-          const { key, error: keyError } = await generateInitialApiKey(customerId);
-
-          if (key) {
-            // Store the API key
-            setStoredApiKey(key);
-            apiClient.setApiKey(key);
-
-            // Fetch customer data with new API key
-            await refreshCustomer();
-            await refreshApiKeys();
-          } else if (keyError) {
-            console.error('Failed to generate initial API key:', keyError);
+          // Generate API key if not exists
+          const storedKey = getStoredApiKey();
+          if (!storedKey) {
+            const { key } = await generateInitialApiKey(customerId);
+            if (key) {
+              setStoredApiKey(key);
+              apiClient.setApiKey(key);
+            }
           }
         }
+
+        await refreshCustomer();
+        await refreshApiKeys();
 
         return { error: null };
       } else {
@@ -339,27 +350,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (result.status === 'complete') {
-        console.log('Sign in complete, creating backend customer');
+        console.log('Sign in complete, checking backend customer');
         // User is signed in
         // Ensure we have customer record
-        const { customerId, error: customerError } = await createBackendCustomer(email);
+        const { customerId, error: customerError } = await createBackendCustomer(email, user.id);
+        console.log('createBackendCustomer result:', { customerId, error: customerError });
         if (customerError && !customerId) {
           console.error('Failed to get customer record:', customerError);
-          // Continue anyway - customer may exist
+          return { error: customerError };
         }
 
         if (customerId) {
           console.log('Customer ID set:', customerId);
           setStoredCustomerId(customerId);
-          // Generate API key if not exists
-          const storedKey = getStoredApiKey();
-          if (!storedKey) {
-            const { key } = await generateInitialApiKey(customerId);
-            if (key) {
-              setStoredApiKey(key);
-              apiClient.setApiKey(key);
-            }
-          }
         }
 
         await refreshCustomer();
@@ -451,13 +454,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const generateApiKey = async (name?: string): Promise<{ key: string | null; error: string | null }> => {
     try {
       const headers = await getAuthHeaders();
-      console.log('Generating API key with headers:', headers);
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ name }),
       });
-      console.log('API key generation response:', response.status);
 
       if (response.status === 401) {
         clearStoredApiKey();
@@ -469,18 +470,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const data = await response.json();
-        console.log('API key error:', data);
         return { key: null, error: data.error || 'Failed to generate API key' };
       }
 
       const data = await response.json();
-      console.log('API key generated:', data);
 
       await refreshApiKeys();
       return { key: data.key, error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate API key';
-      console.error('API key generation error:', err);
       return { key: null, error: message };
     }
   };

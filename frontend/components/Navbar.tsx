@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import clsx from 'clsx';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
+import { LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 export default function Navbar() {
@@ -50,17 +51,19 @@ export default function Navbar() {
             ) : (
               <>
                 <SignedOut>
-                  <SignInButton>
-                    <button className="text-sm font-medium text-gray-400 hover:text-white transition-colors font-mono">
-                      Sign In
-                    </button>
-                  </SignInButton>
-                  <SignUpButton>
-                    <button className="text-sm font-bold px-4 py-2 bg-primary text-black rounded-lg hover:bg-[#00dd77] transition-colors font-mono">
-                      Get Started
-                    </button>
-                  </SignUpButton>
-                </SignedOut>
+                   <SignInButton>
+                     <button className="flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white transition-colors font-mono">
+                       <LogIn className="h-4 w-4" />
+                       Sign In
+                     </button>
+                   </SignInButton>
+                   <SignUpButton>
+                     <button className="flex items-center gap-2 text-sm font-bold px-4 py-2 bg-primary text-black rounded-lg hover:bg-[#00dd77] transition-colors font-mono">
+                       <UserPlus className="h-4 w-4" />
+                       Get Started
+                     </button>
+                   </SignUpButton>
+                 </SignedOut>
                 <SignedIn>
                   {customer && (
                     <Link
@@ -120,23 +123,25 @@ export default function Navbar() {
             ))}
             <hr className="border-[#222]" />
             <SignedOut>
-              <SignInButton>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block w-full text-left text-base font-medium text-gray-400 hover:text-white py-2 font-mono"
-                >
-                  Sign In
-                </button>
-              </SignInButton>
-              <SignUpButton>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-base font-bold text-center px-4 py-2 bg-primary text-black rounded-lg hover:bg-[#00dd77] transition-colors font-mono"
-                >
-                  Get Started
-                </button>
-              </SignUpButton>
-            </SignedOut>
+               <SignInButton>
+                 <button
+                   onClick={() => setMobileMenuOpen(false)}
+                   className="flex items-center gap-2 w-full text-left text-base font-medium text-gray-400 hover:text-white py-2 font-mono"
+                 >
+                   <LogIn className="h-4 w-4" />
+                   Sign In
+                 </button>
+               </SignInButton>
+               <SignUpButton>
+                 <button
+                   onClick={() => setMobileMenuOpen(false)}
+                   className="flex items-center gap-2 w-full text-center text-base font-bold px-4 py-2 bg-primary text-black rounded-lg hover:bg-[#00dd77] transition-colors font-mono"
+                 >
+                   <UserPlus className="h-4 w-4" />
+                   Get Started
+                 </button>
+               </SignUpButton>
+             </SignedOut>
             <SignedIn>
               {customer && (
                 <Link

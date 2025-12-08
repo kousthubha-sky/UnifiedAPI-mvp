@@ -48,11 +48,7 @@ export default function Dashboard() {
   const [paypalAccountId, setPaypalAccountId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, authLoading, router]);
+  // Clerk handles authentication redirects
 
   useEffect(() => {
     if (customer) {

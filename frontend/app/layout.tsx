@@ -28,7 +28,42 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      appearance={{
+        baseTheme: undefined,
+        variables: {
+          colorPrimary: '#00dd77',
+          colorBackground: '#ffffff',
+          colorInputBackground: '#0a0a0a',
+          colorInputText: '#ffffff',
+          colorText: '#000000',
+          colorTextSecondary: '#1a1a1a',
+          borderRadius: '0.5rem'
+        },
+        elements: {
+          card: 'bg-white border-[#222] shadow-xl',
+          headerTitle: 'text-white',
+          headerSubtitle: 'text-gray-400',
+          socialButtonsBlockButton: 'bg-[#1a1a1a] border-[#333] hover:bg-[#222]',
+          socialButtonsBlockButtonText: 'text-white',
+          formButtonPrimary: 'bg-[#00dd77] hover:bg-[#00b866] text-black font-bold',
+          formFieldInput: 'bg-[#1a1a1a] border-[#333] text-white focus:ring-[#00dd77]',
+          formFieldLabel: 'text-gray-300',
+          footerActionLink: 'text-[#00dd77] hover:text-[#00b866]',
+          dividerLine: 'bg-[#333]',
+          dividerText: 'text-gray-400',
+          formFieldInputShowPasswordButton: 'text-gray-400 hover:text-white',
+          identityPreviewEditButton: 'text-[#00dd77] hover:text-[#00b866]',
+          alert: 'bg-red-900/20 border-red-800 text-red-400',
+          alertText: 'text-red-400',
+          userPreviewTextContainer: 'text-black',
+          profileSectionHeader: 'text-black font-bold',
+          // pageScrollBox: 'bg-[#1a1a1a]',
+                
+         
+        }
+      }}
+    >
       <html lang="en">
         <body className="bg-white text-gray-900">
           <AuthProvider>
