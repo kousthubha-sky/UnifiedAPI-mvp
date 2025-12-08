@@ -6,13 +6,13 @@
  * Run with: npx tsx examples/node/refund-payment.ts
  */
 
-import { UnifiedAPIClient, PaymentHubError, PaymentNotFoundError } from '../../sdk/src/index.js';
+import { UnifiedAPIClient, OneRouterError, PaymentNotFoundError } from '../../sdk/src/index.js';
 
-const API_KEY = process.env.PAYMENTHUB_API_KEY || 'sk_test_example';
-const API_URL = process.env.PAYMENTHUB_API_URL || 'http://localhost:3000';
+const API_KEY = process.env.OneRouter_API_KEY || 'sk_test_example';
+const API_URL = process.env.OneRouter_API_URL || 'http://localhost:3000';
 
 async function main() {
-  console.log('💸 PaymentHub SDK - Refund Payment Example\n');
+  console.log('💸 OneRouter SDK - Refund Payment Example\n');
 
   const client = new UnifiedAPIClient({
     apiKey: API_KEY,
@@ -154,8 +154,8 @@ async function main() {
     if (error instanceof PaymentNotFoundError) {
       console.log('✅ Correctly caught PaymentNotFoundError');
       console.log(`   Message: ${error.message}`);
-    } else if (error instanceof PaymentHubError) {
-      console.log('✅ Caught PaymentHubError as expected');
+    } else if (error instanceof OneRouterError) {
+      console.log('✅ Caught OneRouterError as expected');
       console.log(`   Code: ${error.code}`);
       console.log(`   Message: ${error.message}`);
     } else {
@@ -167,7 +167,7 @@ async function main() {
 }
 
 function handleError(context: string, error: unknown) {
-  if (error instanceof PaymentHubError) {
+  if (error instanceof OneRouterError) {
     console.log(`❌ ${context} failed:`);
     console.log(`   Code: ${error.code}`);
     console.log(`   Message: ${error.message}`);

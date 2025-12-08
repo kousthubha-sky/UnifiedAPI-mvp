@@ -13,7 +13,7 @@ from stripe import PaymentIntent, Refund
 from stripe._error import InvalidRequestError, StripeError
 
 from app.config import Settings
-from app.logging import get_logger
+from app.app_logging import get_logger
 from app.payments.errors import (
     PaymentFailedError,
     PaymentNotFoundError,

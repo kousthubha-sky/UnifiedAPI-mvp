@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  PaymentHubError,
+  OneRouterError,
   ValidationError,
   AuthenticationError,
   ForbiddenError,
@@ -17,14 +17,14 @@ import {
   NetworkError,
   TimeoutError,
   InternalError,
-  isPaymentHubError,
+  isOneRouterError,
   isRetryableError,
   ErrorCode,
 } from '../src/index.js';
 
-describe('PaymentHubError', () => {
+describe('OneRouterError', () => {
   it('should create error with all properties', () => {
-    const error = new PaymentHubError(
+    const error = new OneRouterError(
       'Test error',
       ErrorCode.INTERNAL_ERROR,
       500,
@@ -37,16 +37,16 @@ describe('PaymentHubError', () => {
     expect(error.statusCode).toBe(500);
     expect(error.traceId).toBe('trace_123');
     expect(error.details).toEqual({ extra: 'data' });
-    expect(error.name).toBe('PaymentHubError');
+    expect(error.name).toBe('OneRouterError');
   });
 
   it('should be retryable for 5xx errors', () => {
-    const error = new PaymentHubError('Server error', 'INTERNAL_ERROR', 500);
+    const error = new OneRouterError('Server error', 'INTERNAL_ERROR', 500);
     expect(error.retryable).toBe(true);
   });
 
   it('should be retryable for network errors', () => {
-    const error = new PaymentHubError(
+    const error = new OneRouterError(
       'Network error',
       ErrorCode.NETWORK_ERROR,
       0
@@ -55,7 +55,7 @@ describe('PaymentHubError', () => {
   });
 
   it('should be retryable for timeout errors', () => {
-    const error = new PaymentHubError(
+    const error = new OneRouterError(
       'Timeout error',
       ErrorCode.TIMEOUT_ERROR,
       0
@@ -64,7 +64,7 @@ describe('PaymentHubError', () => {
   });
 
   it('should be retryable for rate limit errors', () => {
-    const error = new PaymentHubError(
+    const error = new OneRouterError(
       'Rate limited',
       ErrorCode.RATE_LIMIT_EXCEEDED,
       429
@@ -73,7 +73,7 @@ describe('PaymentHubError', () => {
   });
 
   it('should not be retryable for 4xx errors', () => {
-    const error = new PaymentHubError(
+    const error = new OneRouterError(
       'Bad request',
       ErrorCode.VALIDATION_ERROR,
       400
@@ -82,7 +82,7 @@ describe('PaymentHubError', () => {
   });
 
   it('should serialize to JSON correctly', () => {
-    const error = new PaymentHubError(
+    const error = new OneRouterError(
       'Test error',
       'TEST_CODE',
       400,
@@ -92,7 +92,7 @@ describe('PaymentHubError', () => {
 
     const json = error.toJSON();
     expect(json).toEqual({
-      name: 'PaymentHubError',
+      name: 'OneRouterError',
       message: 'Test error',
       code: 'TEST_CODE',
       statusCode: 400,
@@ -103,7 +103,7 @@ describe('PaymentHubError', () => {
   });
 
   it('should create from API response', () => {
-    const error = PaymentHubError.fromResponse(
+    const error = OneRouterError.fromResponse(
       {
         error: 'Payment failed',
         code: ErrorCode.PAYMENT_FAILED,
@@ -257,39 +257,39 @@ describe('Specific error classes', () => {
 });
 
 describe('Type guards', () => {
-  describe('isPaymentHubError', () => {
-    it('should return true for PaymentHubError', () => {
-      const error = new PaymentHubError('test', 'TEST', 400);
-      expect(isPaymentHubError(error)).toBe(true);
+  describe('isOneRouterError', () => {
+    it('should return true for OneRouterError', () => {
+      const error = new OneRouterError('test', 'TEST', 400);
+      expect(isOneRouterError(error)).toBe(true);
     });
 
     it('should return true for specific error subclasses', () => {
-      expect(isPaymentHubError(new ValidationError('test'))).toBe(true);
-      expect(isPaymentHubError(new AuthenticationError())).toBe(true);
-      expect(isPaymentHubError(new NetworkError())).toBe(true);
+      expect(isOneRouterError(new ValidationError('test'))).toBe(true);
+      expect(isOneRouterError(new AuthenticationError())).toBe(true);
+      expect(isOneRouterError(new NetworkError())).toBe(true);
     });
 
     it('should return false for regular Error', () => {
-      expect(isPaymentHubError(new Error('test'))).toBe(false);
+      expect(isOneRouterError(new Error('test'))).toBe(false);
     });
 
     it('should return false for non-error values', () => {
-      expect(isPaymentHubError(null)).toBe(false);
-      expect(isPaymentHubError(undefined)).toBe(false);
-      expect(isPaymentHubError('error')).toBe(false);
-      expect(isPaymentHubError({ message: 'error' })).toBe(false);
+      expect(isOneRouterError(null)).toBe(false);
+      expect(isOneRouterError(undefined)).toBe(false);
+      expect(isOneRouterError('error')).toBe(false);
+      expect(isOneRouterError({ message: 'error' })).toBe(false);
     });
   });
 
   describe('isRetryableError', () => {
-    it('should return true for retryable PaymentHubErrors', () => {
+    it('should return true for retryable OneRouterErrors', () => {
       expect(isRetryableError(new NetworkError())).toBe(true);
       expect(isRetryableError(new TimeoutError())).toBe(true);
       expect(isRetryableError(new RateLimitError())).toBe(true);
       expect(isRetryableError(new InternalError())).toBe(true);
     });
 
-    it('should return false for non-retryable PaymentHubErrors', () => {
+    it('should return false for non-retryable OneRouterErrors', () => {
       expect(isRetryableError(new ValidationError('test'))).toBe(false);
       expect(isRetryableError(new AuthenticationError())).toBe(false);
       expect(isRetryableError(new ForbiddenError())).toBe(false);

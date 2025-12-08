@@ -1,5 +1,5 @@
 /**
- * Integration tests for PaymentHub SDK
+ * Integration tests for OneRouter SDK
  *
  * These tests require a running local Fastify server.
  * Run with: INTEGRATION_TEST=true npm run test:integration
@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   UnifiedAPIClient,
-  PaymentHubError,
+  OneRouterError,
   AuthenticationError,
   ValidationError,
 } from '../src/index.js';
@@ -280,7 +280,7 @@ describeIntegration('Integration Tests', () => {
             console.log('Skipping non-existent refund test: no valid API key');
             return;
           }
-          expect(error).toBeInstanceOf(PaymentHubError);
+          expect(error).toBeInstanceOf(OneRouterError);
         }
       });
     });
@@ -299,7 +299,7 @@ describeIntegration('Integration Tests', () => {
         // Should not reach here if auth is enforced
       } catch (error) {
         // Either auth error or network error is acceptable
-        expect(error).toBeInstanceOf(PaymentHubError);
+        expect(error).toBeInstanceOf(OneRouterError);
       }
     });
 

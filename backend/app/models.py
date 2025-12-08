@@ -30,6 +30,7 @@ class CreateCustomerRequest(BaseModel):
     """Request model for creating a customer."""
 
     email: EmailStr = Field(..., description="Customer's email address")
+    user_id: str = Field(..., description="Clerk user ID")
     tier: CustomerTier = Field(
         default=CustomerTier.STARTER,
         description="Customer tier (defaults to starter)",

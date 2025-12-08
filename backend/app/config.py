@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     )
 
     # Authentication
-    allowed_api_keys: list[str] = Field(
+    allowed_api_keys_raw: str = Field(
         default_factory=list,
         alias="ALLOWED_API_KEYS",
         description="Comma-separated list of allowed API keys",
@@ -126,6 +126,11 @@ class Settings(BaseSettings):
         default=None,
         alias="BOOTSTRAP_API_KEY",
         description="Bootstrap API key for signup flow",
+    )
+    clerk_secret_key: str | None = Field(
+        default=None,
+        alias="CLERK_SECRET_KEY",
+        description="Clerk secret key for JWT verification",
     )
 
     # CORS & API Configuration
@@ -150,15 +155,19 @@ class Settings(BaseSettings):
         description="API scheme for documentation",
     )
 
-    @field_validator("allowed_api_keys", mode="before")
-    @classmethod
-    def parse_allowed_api_keys(cls, v: str | list[str] | None) -> list[str]:
+    @staticmethod
+    def parse_allowed_api_keys(v: str | list[str] | None) -> list[str]:
         """Parse comma-separated API keys into a list."""
         if v is None:
             return []
         if isinstance(v, list):
             return v
         return [k.strip() for k in v.split(",") if k.strip()]
+
+    @property
+    def allowed_api_keys(self) -> list[str]:
+        """Parse comma-separated API keys into a list."""
+        return self.parse_allowed_api_keys(self.allowed_api_keys_raw)
 
     @property
     def is_production(self) -> bool:

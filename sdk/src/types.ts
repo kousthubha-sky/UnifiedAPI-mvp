@@ -1,12 +1,12 @@
 /**
- * PaymentHub SDK Types
+ * OneRouter SDK Types
  */
 
 // Configuration Types
 export interface ClientConfig {
   /** API key for authentication (sk_...) */
   apiKey: string;
-  /** Base URL of the PaymentHub API */
+  /** Base URL of the OneRouter API */
   baseUrl?: string;
   /** Request timeout in milliseconds (default: 30000) */
   timeout?: number;
@@ -34,6 +34,9 @@ export type PaymentProvider = 'stripe' | 'paypal';
 
 // Payment Status Types
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'processing';
+
+// Customer Types
+export type CustomerTier = 'starter' | 'growth' | 'scale' | 'admin';
 
 // Payment Request/Response Types
 export interface CreatePaymentRequest {
@@ -184,6 +187,167 @@ export enum ErrorCode {
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+}
+
+// Customer Request/Response Types
+export interface CreateCustomerRequest {
+  /** Customer's email address */
+  email: string;
+  /** Customer tier */
+  tier?: CustomerTier;
+  /** Optional Stripe connected account ID */
+  stripe_account_id?: string;
+  /** Optional PayPal merchant ID */
+  paypal_account_id?: string;
+}
+
+export interface UpdateCustomerRequest {
+  /** New email address */
+  email?: string;
+  /** New tier */
+  tier?: CustomerTier;
+  /** Stripe connected account ID */
+  stripe_account_id?: string;
+  /** PayPal merchant ID */
+  paypal_account_id?: string;
+}
+
+export interface CustomerResponse {
+  /** Customer UUID */
+  id: string;
+  /** Customer email */
+  email: string;
+  /** Customer tier */
+  tier: string;
+  /** Stripe connected account ID */
+  stripe_account_id?: string;
+  /** PayPal merchant ID */
+  paypal_account_id?: string;
+  /** Creation timestamp */
+  created_at: string;
+  /** Last update timestamp */
+  updated_at: string;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+export interface ListCustomersRequest {
+  /** Maximum results to return (default: 10, max: 100) */
+  limit?: number;
+  /** Number of results to skip */
+  offset?: number;
+}
+
+export interface ListCustomersResponse {
+  /** Array of customer records */
+  customers: CustomerResponse[];
+  /** Total count of matching records */
+  total: number;
+  /** Current limit */
+  limit: number;
+  /** Current offset */
+  offset: number;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+// API Key Types
+export type ApiKeyAction = 'revoke' | 'rotate';
+
+export interface CreateApiKeyRequest {
+  /** Optional name for the API key */
+  name?: string;
+  /** Customer ID (required when using bootstrap key) */
+  customer_id?: string;
+}
+
+export interface UpdateApiKeyRequest {
+  /** Action to perform */
+  action: ApiKeyAction;
+  /** New name for the API key (optional) */
+  name?: string;
+}
+
+export interface ApiKeyResponse {
+  /** API key UUID */
+  id: string;
+  /** API key name */
+  name?: string;
+  /** Whether the key is active */
+  is_active: boolean;
+  /** Last used timestamp */
+  last_used_at?: string;
+  /** Creation timestamp */
+  created_at: string;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+export interface CreateApiKeyResponse {
+  /** API key UUID */
+  id: string;
+  /** The API key (only shown once) */
+  key: string;
+  /** API key name */
+  name?: string;
+  /** Whether the key is active */
+  is_active: boolean;
+  /** Creation timestamp */
+  created_at: string;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+export interface RotateApiKeyResponse {
+  /** API key UUID */
+  id: string;
+  /** The new API key (only shown once) */
+  key: string;
+  /** API key name */
+  name?: string;
+  /** Whether the key is active */
+  is_active: boolean;
+  /** Creation timestamp */
+  created_at: string;
+  /** Request trace ID */
+  trace_id?: string;
+  /** Status message */
+  message: string;
+}
+
+export interface ListApiKeysResponse {
+  /** List of API keys */
+  keys: ApiKeyResponse[];
+  /** Total count of keys */
+  total: number;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+export interface DeleteApiKeyResponse {
+  /** Success message */
+  message: string;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+export interface RevokeApiKeyResponse {
+  /** API key UUID */
+  id: string;
+  /** Key is now inactive */
+  is_active: boolean;
+  /** Status message */
+  message: string;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+// Health Check Types
+export interface HealthResponse {
+  /** Server status */
+  status: string;
+  /** Current timestamp */
+  timestamp: string;
 }
 
 // Transport Interface (for testing)

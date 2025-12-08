@@ -17,7 +17,7 @@ from fastapi import Depends, Header, Request
 from supabase import Client as SupabaseClient
 
 from app.config import Settings, get_settings
-from app.logging import get_trace_id, set_trace_id
+from app.app_logging import get_trace_id, set_trace_id
 
 if TYPE_CHECKING:
     from redis.asyncio.client import Redis as AsyncRedis

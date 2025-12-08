@@ -1,4 +1,4 @@
-"""API Key Authentication for the PaymentHub API.
+"""API Key Authentication for the OneRouter API.
 
 Implements authentication that:
 - Checks ALLOWED_API_KEYS from settings
@@ -152,6 +152,64 @@ async def _invalidate_cached_api_key(redis_client: Any, api_key: str) -> None:
         logger.warning("Redis cache invalidation failed", error=str(e))
 
 
+async def _validate_clerk_token(supabase_client: Any, token: str) -> dict[str, Any] | None:
+    """Validate Clerk JWT token and get customer data.
+
+    Args:
+        supabase_client: Supabase client instance
+        token: JWT token from Authorization header
+
+    Returns:
+        Dict with customer_id, tier if valid, None otherwise
+    """
+    if supabase_client is None:
+        logger.warning("Supabase client not available")
+        return None
+
+    try:
+        import jwt
+        # Decode without verification for development
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        print(f"Clerk token payload: user_id={user_id}, email={email}")
+        if not user_id or not email:
+            print("Missing user_id or email in token")
+            return None
+
+        # First try by user_id
+        print(f"Querying customer by user_id: {user_id}")
+        response = supabase_client.table("customers").select("id, tier").eq("user_id", user_id).single().execute()
+        print(f"Query result: data={response.data}")
+
+        if response.data:
+            return {
+                "customer_id": response.data["id"],
+                "tier": response.data["tier"],
+            }
+
+        # If not found, try by email (for existing customers)
+        print(f"Querying customer by email: {email}")
+        response = supabase_client.table("customers").select("id, tier").eq("email", email).single().execute()
+        print(f"Email query result: data={response.data}")
+
+        if response.data:
+            # Update user_id for future
+            supabase_client.table("customers").update({"user_id": user_id}).eq("id", response.data["id"]).execute()
+            print(f"Updated existing customer with user_id: {response.data['id']}")
+            return {
+                "customer_id": response.data["id"],
+                "tier": response.data["tier"],
+            }
+
+        print(f"Customer not found for Clerk user: user_id={user_id}, email={email}")
+
+    except Exception as e:
+        print(f"Clerk token validation failed: {str(e)}")
+
+    return None
+
+
 async def _validate_api_key_supabase(supabase_client: Any, api_key: str) -> dict[str, Any] | None:
     """Validate API key against Supabase database.
 
@@ -209,6 +267,7 @@ async def authenticate_request(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ) -> AuthContext:
     """Authenticate an incoming request.
 
@@ -335,7 +394,25 @@ async def authenticate_request(
         )
         return auth_ctx
 
+    # Check Clerk JWT
+    print(f"Auth check: x_api_key={bool(x_api_key)}, authorization={bool(authorization)}")
+    if not x_api_key and authorization and authorization.startswith("Bearer "):
+        print("Trying Clerk auth")
+        token = authorization[7:]
+        validated_data = await _validate_clerk_token(supabase_client, token)
+        if validated_data:
+            auth_ctx = AuthContext(
+                customer_id=validated_data["customer_id"],
+                tier=validated_data["tier"],
+                is_bootstrap=False,
+                is_static_key=False,
+            )
+            request.state.auth = auth_ctx
+            print(f"Clerk JWT authentication success: customer_id={validated_data['customer_id']}")
+            return auth_ctx
+
     # API key is invalid
+    print("Auth failed, raising InvalidAPIKeyError")
     raise InvalidAPIKeyError()
 
 

@@ -1,3 +1,3 @@
-"""PaymentHub Backend - FastAPI Application."""
+"""OneRouter Backend - FastAPI Application."""
 
 __version__ = "0.1.0"

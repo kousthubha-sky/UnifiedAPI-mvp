@@ -1,4 +1,4 @@
-"""PaymentHub Backend - FastAPI Application.
+"""OneRouter Backend - FastAPI Application.
 
 Main application module with lifespan management for Redis and Supabase clients.
 """
@@ -14,8 +14,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import ORJSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app import __version__
+
+
+class ForceCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
 from app.api_keys.routes import router as api_keys_router
 from app.auth import authenticate_request
 from app.config import get_settings
@@ -32,7 +41,7 @@ from app.errors import (
     api_error_handler,
     create_error_response,
 )
-from app.logging import (
+from app.app_logging import (
     configure_logging,
     get_logger,
     get_request_latency_ms,
@@ -65,7 +74,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Startup
     logger.info(
-        "Starting PaymentHub API",
+        "Starting OneRouter API",
         version=__version__,
         environment=settings.environment,
         python_version=sys.version.split()[0],
@@ -95,19 +104,19 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Print startup banner
     banner = f"""
-{"═" * 70}
-  🚀 PaymentHub API Server Started
-{"═" * 70}
-  📍 Server URL:    http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}
-  📚 Documentation: http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}/docs
-  💚 Health Check:  http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}/health
-  🔴 Redis:         {redis_status.capitalize()} on {settings.redis_url}
-  🗄️  Supabase:      {supabase_status.capitalize()}{" - " + settings.supabase_url.replace("https://", "") if settings.supabase_url else ""}
-{"═" * 70}
+{"=" * 70}
+  OneRouter API Server Started
+{"=" * 70}
+  Server URL:    http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}
+  Documentation: http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}/docs
+  Health Check:  http://{settings.host if settings.host != "0.0.0.0" else "localhost"}:{settings.port}/health
+  Redis:         {redis_status.capitalize()} on {settings.redis_url}
+  Supabase:      {supabase_status.capitalize()}{" - " + settings.supabase_url.replace("https://", "") if settings.supabase_url else ""}
+{"=" * 70}
   Environment:      {settings.environment}
   Python Version:   {sys.version.split()[0]}
   Log Level:        {settings.log_level}
-{"═" * 70}
+{"=" * 70}
 """
     print(banner)
 
@@ -123,7 +132,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # Shutdown
-    logger.info("Shutting down PaymentHub API")
+    logger.info("Shutting down OneRouter API")
 
     await close_redis()
     close_supabase()
@@ -277,20 +286,20 @@ def custom_openapi(app: FastAPI) -> dict[str, Any]:
     # Add server information
     openapi_schema["servers"] = [
         {
-            "url": "http://localhost:3001",
+            "url": "http://localhost:3000",
             "description": "Local development server",
         },
         {
-            "url": "https://api.paymenthub.com",
+            "url": "https://api.OneRouter.com",
             "description": "Production server",
         },
     ]
 
     # Add contact and license
     openapi_schema["info"]["contact"] = {
-        "name": "PaymentHub Support",
-        "url": "https://paymenthub.com/support",
-        "email": "support@paymenthub.com",
+        "name": "OneRouter Support",
+        "url": "https://OneRouter.com/support",
+        "email": "support@OneRouter.com",
     }
     openapi_schema["info"]["license"] = {
         "name": "ISC",
@@ -337,6 +346,9 @@ def create_app() -> FastAPI:
             "X-RateLimit-Reset",
         ],
     )
+
+    # Force CORS headers on all responses
+    fastapi_app.add_middleware(ForceCORSMiddleware)
 
     # Register exception handlers
     fastapi_app.add_exception_handler(APIError, api_error_handler)
@@ -385,6 +397,9 @@ def create_app() -> FastAPI:
                 trace_id=get_trace_id(),
             )
             response.headers["X-Trace-Id"] = get_trace_id()
+            # Add CORS headers to error responses
+            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
 
         # Apply rate limiting (after auth, so we have customer context)
@@ -434,6 +449,34 @@ def create_app() -> FastAPI:
         return {
             "status": "ok",
             "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    # Metrics endpoint
+    @fastapi_app.get(
+        "/api/v1/metrics",
+        tags=["metrics"],
+        summary="Get usage metrics",
+        description="Retrieve API usage metrics and statistics.",
+        response_model=dict,
+    )
+    async def get_metrics() -> dict:
+        """Get usage metrics for the API."""
+        # TODO: Implement real metrics collection
+        # For now, return dummy data
+        return {
+            "total_requests": 1234,
+            "total_success": 1200,
+            "total_errors": 34,
+            "success_rate": 97.2,
+            "daily_metrics": [
+                {"date": "2024-12-01", "requests": 100, "success": 95, "errors": 5},
+                {"date": "2024-12-02", "requests": 120, "success": 115, "errors": 5},
+                {"date": "2024-12-03", "requests": 90, "success": 88, "errors": 2},
+                {"date": "2024-12-04", "requests": 150, "success": 145, "errors": 5},
+                {"date": "2024-12-05", "requests": 200, "success": 195, "errors": 5},
+                {"date": "2024-12-06", "requests": 180, "success": 175, "errors": 5},
+                {"date": "2024-12-07", "requests": 294, "success": 287, "errors": 7},
+            ]
         }
 
     # Root endpoint

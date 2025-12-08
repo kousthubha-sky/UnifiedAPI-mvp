@@ -6,8 +6,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#0066cc',
-        secondary: '#6f42c1',
+        primary: '#00ff88',
+        secondary: '#ff3366',
+      },
+      fontFamily: {
+        mono: [
+          'JetBrains Mono',
+          'ui-monospace',
+          'SF Mono',
+          'Menlo',
+          'Monaco',
+          'Cascadia Code',
+          'Roboto Mono',
+          'Consolas',
+          'Courier New',
+          'monospace'
+        ],
       },
     },
   },

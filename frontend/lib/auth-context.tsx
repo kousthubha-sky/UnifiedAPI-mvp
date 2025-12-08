@@ -1,14 +1,15 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { getSupabase } from './supabase';
+import { useUser, useAuth as useClerkAuth, useSignUp, useSignIn } from '@clerk/nextjs';
 import {
   apiClient,
   getStoredApiKey,
   setStoredApiKey,
   getStoredCustomerId,
   setStoredCustomerId,
+  clearStoredApiKey,
+  clearStoredCustomerId,
   clearAllAuthData,
   getBootstrapApiKey,
 } from './api';
@@ -32,8 +33,8 @@ export interface ApiKey {
 }
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any; // Clerk user
+  session: any; // For compatibility, set to null
   customer: Customer | null;
   apiKeys: ApiKey[];
   loading: boolean;
@@ -55,12 +56,34 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const { user, isLoaded: userLoaded } = useUser();
+  const { getToken, signOut: clerkSignOut } = useClerkAuth();
+  const { signUp: clerkSignUp } = useSignUp();
+  const { signIn: clerkSignIn } = useSignIn();
+
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper to get auth headers - uses Clerk token
+  const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const token = await getToken();
+      console.log('Clerk token:', token ? 'present' : 'null');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error('Failed to get Clerk token:', error);
+    }
+
+    return headers;
+  }, []);
 
   // Helper to get API key header - uses stored API key or bootstrap key as fallback
   const getApiKeyHeaders = useCallback((useBootstrap: boolean = false): HeadersInit => {
@@ -87,21 +110,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const customerId = getStoredCustomerId();
     if (!customerId) return;
 
-    const storedKey = getStoredApiKey();
-    if (!storedKey) {
-      console.warn('No API key available to refresh customer');
-      return;
-    }
-
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/customers/${customerId}`, {
-        headers: getApiKeyHeaders(),
+        headers,
       });
 
       if (response.status === 401) {
-        console.error('API key invalid or expired');
-        clearAllAuthData();
+        console.error('Authentication failed');
+        clearStoredApiKey();
+        clearStoredCustomerId();
         setCustomer(null);
+        setApiKeys([]);
         return;
       }
 
@@ -114,20 +134,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Failed to fetch customer:', err);
     }
-  }, [getApiKeyHeaders]);
+  }, [getAuthHeaders]);
 
   const refreshApiKeys = useCallback(async () => {
-    const storedKey = getStoredApiKey();
-    if (!storedKey) return;
-
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys`, {
-        headers: getApiKeyHeaders(),
+        headers,
       });
 
       if (response.status === 401) {
-        console.error('API key invalid or expired');
-        clearAllAuthData();
+        console.error('Authentication failed');
+        clearStoredApiKey();
+        clearStoredCustomerId();
         setApiKeys([]);
         return;
       }
@@ -139,13 +158,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Failed to fetch API keys:', err);
     }
-  }, [getApiKeyHeaders]);
+  }, [getAuthHeaders]);
 
-  // Initialize auth state from localStorage and Supabase
+  // Initialize auth state when Clerk user is loaded
   useEffect(() => {
     const initAuth = async () => {
+      if (!userLoaded) return;
+
       try {
-        // First check localStorage for existing API key
+        // Check localStorage for existing API key
         const storedKey = getStoredApiKey();
         const storedCustomerId = getStoredCustomerId();
 
@@ -167,20 +188,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setCustomer(customerData);
             } else if (response.status === 401) {
               // API key is invalid, clear auth data
-              clearAllAuthData();
+              clearStoredApiKey();
+              clearStoredCustomerId();
+              setCustomer(null);
+              setApiKeys([]);
               apiClient.setApiKey(null);
             }
           } catch (err) {
             console.error('Failed to fetch customer on init:', err);
           }
-        }
-
-        // Also initialize Supabase session if available
-        const supabase = getSupabase();
-        if (supabase) {
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
         }
       } catch (err) {
         console.error('Failed to initialize auth:', err);
@@ -190,33 +206,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
-  }, []);
+  }, [userLoaded]);
 
-  // Set up Supabase auth state change listener
-  useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        if (!newSession) {
-          // Keep API key auth even if Supabase session ends
-          // Only clear if we don't have an API key
-          const storedKey = getStoredApiKey();
-          if (!storedKey) {
-            setCustomer(null);
-            setApiKeys([]);
-          }
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   // Refresh customer and API keys when auth state changes
   useEffect(() => {
@@ -230,20 +222,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Create customer in backend after getting customer ID
   const createBackendCustomer = async (email: string): Promise<{ customerId: string | null; error: string | null }> => {
     try {
-      // Use bootstrap key for customer creation (POST /api/v1/customers is public, but we'll send key anyway)
+      const headers = await getAuthHeaders();
+      console.log('Creating customer with user_id:', user?.id);
       const response = await fetch(`${API_BASE_URL}/api/v1/customers`, {
         method: 'POST',
-        headers: getApiKeyHeaders(true),
-        body: JSON.stringify({ email }),
+        headers,
+        body: JSON.stringify({ email, user_id: user?.id }),
       });
 
       const data = await response.json();
-
-      if (response.status === 409 && data.code === 'CUSTOMER_EXISTS') {
-        // Customer exists, try to find them
-        // For now, we'll need to generate an API key with the bootstrap key
-        return { customerId: null, error: null };
-      }
+      console.log('Customer creation response:', response.status, data);
 
       if (!response.ok) {
         return { customerId: null, error: data.error || 'Failed to create customer' };
@@ -252,19 +240,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { customerId: data.id, error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create customer';
+      console.error('Customer creation error:', err);
       return { customerId: null, error: message };
     }
   };
 
-  // Generate initial API key using bootstrap key
+  // Generate initial API key using Clerk auth
   const generateInitialApiKey = async (customerId: string): Promise<{ key: string | null; error: string | null }> => {
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys`, {
         method: 'POST',
-        headers: getApiKeyHeaders(true),
-        body: JSON.stringify({ 
+        headers,
+        body: JSON.stringify({
           name: 'Default API Key',
-          customer_id: customerId, // Include customer ID for bootstrap auth
         }),
       });
 
@@ -282,58 +271,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string): Promise<{ error: string | null }> => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { error: 'Supabase not initialized' };
+    if (!clerkSignUp) {
+      return { error: 'Clerk not initialized' };
     }
 
     try {
       setError(null);
 
-      // Step 1: Sign up with Supabase
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
+      // Step 1: Sign up with Clerk
+      const result = await clerkSignUp.create({
+        emailAddress: email,
         password,
       });
 
-      if (authError) {
-        setError(authError.message);
-        return { error: authError.message };
-      }
+      if (result.status === 'complete') {
+        // User is signed up and signed in
+        // Step 2: Create customer in backend
+        const { customerId, error: customerError } = await createBackendCustomer(email);
 
-      if (!data.user) {
-        return { error: 'Failed to create user account' };
-      }
-
-      // Step 2: Create customer in backend
-      const { customerId, error: customerError } = await createBackendCustomer(email);
-      
-      if (customerError && !customerId) {
-        console.error('Failed to create customer record:', customerError);
-        // Continue anyway - customer may already exist
-      }
-
-      // Step 3: If we got a customer ID, store it and generate API key
-      if (customerId) {
-        setStoredCustomerId(customerId);
-
-        // Step 4: Generate initial API key using bootstrap key
-        const { key, error: keyError } = await generateInitialApiKey(customerId);
-        
-        if (key) {
-          // Store the API key
-          setStoredApiKey(key);
-          apiClient.setApiKey(key);
-          
-          // Fetch customer data with new API key
-          await refreshCustomer();
-          await refreshApiKeys();
-        } else if (keyError) {
-          console.error('Failed to generate initial API key:', keyError);
+        if (customerError && !customerId) {
+          console.error('Failed to create customer record:', customerError);
+          // Continue anyway - customer may already exist
         }
-      }
 
-      return { error: null };
+        // Step 3: If we got a customer ID, store it and generate API key
+        if (customerId) {
+          setStoredCustomerId(customerId);
+
+          // Step 4: Generate initial API key using bootstrap key
+          const { key, error: keyError } = await generateInitialApiKey(customerId);
+
+          if (key) {
+            // Store the API key
+            setStoredApiKey(key);
+            apiClient.setApiKey(key);
+
+            // Fetch customer data with new API key
+            await refreshCustomer();
+            await refreshApiKeys();
+          } else if (keyError) {
+            console.error('Failed to generate initial API key:', keyError);
+          }
+        }
+
+        return { error: null };
+      } else {
+        return { error: 'Sign up incomplete' };
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sign up failed';
       setError(message);
@@ -342,32 +326,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { error: 'Supabase not initialized' };
+    if (!clerkSignIn) {
+      return { error: 'Clerk not initialized' };
     }
 
     try {
       setError(null);
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+      console.log('Starting sign in for email:', email);
+      const result = await clerkSignIn.create({
+        identifier: email,
         password,
       });
 
-      if (authError) {
-        setError(authError.message);
-        return { error: authError.message };
-      }
+      if (result.status === 'complete') {
+        console.log('Sign in complete, creating backend customer');
+        // User is signed in
+        // Ensure we have customer record
+        const { customerId, error: customerError } = await createBackendCustomer(email);
+        if (customerError && !customerId) {
+          console.error('Failed to get customer record:', customerError);
+          // Continue anyway - customer may exist
+        }
 
-      // After sign in, check if we have stored API key
-      const storedKey = getStoredApiKey();
-      if (storedKey) {
-        apiClient.setApiKey(storedKey);
+        if (customerId) {
+          console.log('Customer ID set:', customerId);
+          setStoredCustomerId(customerId);
+          // Generate API key if not exists
+          const storedKey = getStoredApiKey();
+          if (!storedKey) {
+            const { key } = await generateInitialApiKey(customerId);
+            if (key) {
+              setStoredApiKey(key);
+              apiClient.setApiKey(key);
+            }
+          }
+        }
+
         await refreshCustomer();
         await refreshApiKeys();
-      }
 
-      return { error: null };
+        return { error: null };
+      } else {
+        return { error: 'Sign in incomplete' };
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sign in failed';
       setError(message);
@@ -376,26 +377,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithMagicLink = async (email: string): Promise<{ error: string | null }> => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      return { error: 'Supabase not initialized' };
+    if (!clerkSignIn) {
+      return { error: 'Clerk not initialized' };
     }
 
     try {
       setError(null);
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
+      const result = await clerkSignIn.create({
+        strategy: 'email_link',
+        identifier: email,
+        redirectUrl: `${window.location.origin}/dashboard`,
       });
 
-      if (authError) {
-        setError(authError.message);
-        return { error: authError.message };
+      if (result.status === 'complete') {
+        return { error: null };
+      } else {
+        return { error: 'Magic link sending failed' };
       }
-
-      return { error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Magic link failed';
       setError(message);
@@ -404,17 +402,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async (): Promise<void> => {
-    const supabase = getSupabase();
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    await clerkSignOut();
 
     // Clear all auth data
     clearAllAuthData();
     apiClient.setApiKey(null);
-    
-    setUser(null);
-    setSession(null);
+
     setCustomer(null);
     setApiKeys([]);
   };
@@ -425,21 +418,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'Not authenticated' };
     }
 
-    const storedKey = getStoredApiKey();
-    if (!storedKey) {
-      return { error: 'No API key available' };
-    }
-
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/customers/${customerId}`, {
         method: 'PATCH',
-        headers: getApiKeyHeaders(),
+        headers,
         body: JSON.stringify(updates),
       });
 
       if (response.status === 401) {
-        clearAllAuthData();
-        return { error: 'Authentication failed. Please log in again.' };
+        clearStoredApiKey();
+        clearStoredCustomerId();
+        setCustomer(null);
+        setApiKeys([]);
+        return { error: 'Authentication failed. Please try again.' };
       }
 
       if (!response.ok) {
@@ -457,53 +449,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const generateApiKey = async (name?: string): Promise<{ key: string | null; error: string | null }> => {
-    const storedKey = getStoredApiKey();
-    if (!storedKey) {
-      return { key: null, error: 'Not authenticated' };
-    }
-
     try {
+      const headers = await getAuthHeaders();
+      console.log('Generating API key with headers:', headers);
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys`, {
         method: 'POST',
-        headers: getApiKeyHeaders(),
+        headers,
         body: JSON.stringify({ name }),
       });
+      console.log('API key generation response:', response.status);
 
       if (response.status === 401) {
-        clearAllAuthData();
-        return { key: null, error: 'Authentication failed. Please log in again.' };
+        clearStoredApiKey();
+        clearStoredCustomerId();
+        setCustomer(null);
+        setApiKeys([]);
+        return { key: null, error: 'Authentication failed. Please try again.' };
       }
 
       if (!response.ok) {
         const data = await response.json();
+        console.log('API key error:', data);
         return { key: null, error: data.error || 'Failed to generate API key' };
       }
 
       const data = await response.json();
+      console.log('API key generated:', data);
+
       await refreshApiKeys();
       return { key: data.key, error: null };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate API key';
+      console.error('API key generation error:', err);
       return { key: null, error: message };
     }
   };
 
   const revokeApiKey = async (id: string): Promise<{ error: string | null }> => {
-    const storedKey = getStoredApiKey();
-    if (!storedKey) {
-      return { error: 'Not authenticated' };
-    }
-
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys/${id}`, {
         method: 'PATCH',
-        headers: getApiKeyHeaders(),
+        headers,
         body: JSON.stringify({ action: 'revoke' }),
       });
 
       if (response.status === 401) {
-        clearAllAuthData();
-        return { error: 'Authentication failed. Please log in again.' };
+        clearStoredApiKey();
+        clearStoredCustomerId();
+        setCustomer(null);
+        setApiKeys([]);
+        return { error: 'Authentication failed. Please try again.' };
       }
 
       if (!response.ok) {
@@ -520,20 +516,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteApiKey = async (id: string): Promise<{ error: string | null }> => {
-    const storedKey = getStoredApiKey();
-    if (!storedKey) {
-      return { error: 'Not authenticated' };
-    }
-
     try {
+      const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys/${id}`, {
         method: 'DELETE',
-        headers: getApiKeyHeaders(),
+        headers,
       });
 
       if (response.status === 401) {
-        clearAllAuthData();
-        return { error: 'Authentication failed. Please log in again.' };
+        clearStoredApiKey();
+        clearStoredCustomerId();
+        setCustomer(null);
+        setApiKeys([]);
+        return { error: 'Authentication failed. Please try again.' };
       }
 
       if (!response.ok) {
@@ -553,10 +548,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        session,
+        session: null, // Clerk doesn't have session in same way
         customer,
         apiKeys,
-        loading,
+        loading: loading || !userLoaded,
         error,
         signUp,
         signIn,

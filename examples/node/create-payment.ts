@@ -6,13 +6,13 @@
  * Run with: npx tsx examples/node/create-payment.ts
  */
 
-import { UnifiedAPIClient, ValidationError, PaymentHubError } from '../../sdk/src/index.js';
+import { UnifiedAPIClient, ValidationError, OneRouterError } from '../../sdk/src/index.js';
 
-const API_KEY = process.env.PAYMENTHUB_API_KEY || 'sk_test_example';
-const API_URL = process.env.PAYMENTHUB_API_URL || 'http://localhost:3000';
+const API_KEY = process.env.OneRouter_API_KEY || 'sk_test_example';
+const API_URL = process.env.OneRouter_API_URL || 'http://localhost:3000';
 
 async function main() {
-  console.log('💳 PaymentHub SDK - Create Payment Example\n');
+  console.log('💳 OneRouter SDK - Create Payment Example\n');
 
   const client = new UnifiedAPIClient({
     apiKey: API_KEY,
@@ -165,7 +165,7 @@ function handleError(context: string, error: unknown) {
     if (error.details?.errors) {
       console.log('   Errors:', error.details.errors);
     }
-  } else if (error instanceof PaymentHubError) {
+  } else if (error instanceof OneRouterError) {
     console.log(`❌ ${context} failed: ${error.message} (${error.code})`);
   } else {
     console.log(`❌ ${context} error:`, error);

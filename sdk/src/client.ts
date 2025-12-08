@@ -1,23 +1,26 @@
 /**
  * UnifiedAPIClient - Main SDK Client
  *
- * The primary entry point for the PaymentHub SDK.
+ * The primary entry point for the OneRouter SDK.
  * Provides a unified interface to interact with payment operations.
  */
 
 import {
   ClientConfig,
   Transport,
+  RequestOptions,
 } from './types.js';
 import { HttpTransport, MockTransport } from './transport.js';
 import { PaymentsResource } from './resources/payments.js';
+import { CustomersResource } from './resources/customers.js';
+import { ApiKeysResource } from './resources/api_keys.js';
 import { ValidationError } from './errors.js';
 
 /**
  * Default configuration values
  */
 const DEFAULT_CONFIG: Partial<ClientConfig> = {
-  baseUrl: 'http://localhost:3000',
+  baseUrl: 'http://localhost:8000',
   timeout: 30000,
   maxRetries: 3,
   enableSigning: false,
@@ -28,11 +31,11 @@ const DEFAULT_CONFIG: Partial<ClientConfig> = {
  *
  * @example
  * ```typescript
- * import { UnifiedAPIClient } from '@paymenthub/sdk';
+ * import { UnifiedAPIClient } from '@OneRouter/sdk';
  *
  * const client = new UnifiedAPIClient({
  *   apiKey: 'sk_your_api_key',
- *   baseUrl: 'https://api.paymenthub.com',
+ *   baseUrl: 'https://api.OneRouter.com',
  * });
  *
  * // Create a payment
@@ -52,6 +55,21 @@ const DEFAULT_CONFIG: Partial<ClientConfig> = {
  *   status: 'completed',
  *   limit: 10
  * });
+ *
+ * // Create a customer
+ * const customer = await client.customers.create({
+ *   email: 'user@example.com',
+ *   tier: 'starter'
+ * });
+ *
+ * // Create an API key
+ * const apiKey = await client.apiKeys.create({
+ *   name: 'My App',
+ *   customer_id: customer.id
+ * });
+ *
+ * // Check server health
+ * const health = await client.health();
  * ```
  */
 export class UnifiedAPIClient {
@@ -59,6 +77,16 @@ export class UnifiedAPIClient {
    * Payments resource for creating, refunding, and listing payments
    */
   public readonly payments: PaymentsResource;
+
+  /**
+   * Customers resource for managing customer accounts
+   */
+  public readonly customers: CustomersResource;
+
+  /**
+   * API Keys resource for managing API keys
+   */
+  public readonly apiKeys: ApiKeysResource;
 
   /**
    * The transport layer used for HTTP requests
@@ -101,6 +129,8 @@ export class UnifiedAPIClient {
 
     // Initialize resources
     this.payments = new PaymentsResource(this.transport);
+    this.customers = new CustomersResource(this.transport);
+    this.apiKeys = new ApiKeysResource(this.transport);
   }
 
   /**
@@ -174,10 +204,31 @@ export class UnifiedAPIClient {
   static forDevelopment(apiKey: string): UnifiedAPIClient {
     return new UnifiedAPIClient({
       apiKey,
-      baseUrl: 'http://localhost:3000',
+      baseUrl: 'http://localhost:8000',
       timeout: 30000,
       maxRetries: 3,
     });
+  }
+
+  /**
+   * Check server health
+   *
+   * @param options - Request options
+   * @returns Health status
+   *
+   * @example
+   * ```typescript
+   * const health = await client.health();
+   * console.log(`Server is ${health.status}`);
+   * ```
+   */
+  async health(options?: RequestOptions): Promise<{ status: string; timestamp: string }> {
+    return this.transport.request<{ status: string; timestamp: string }>(
+      'GET',
+      '/health',
+      undefined,
+      options
+    );
   }
 
   /**
@@ -191,7 +242,7 @@ export class UnifiedAPIClient {
    * ```typescript
    * const client = UnifiedAPIClient.forProduction(
    *   'sk_live_xxx',
-   *   'https://api.paymenthub.com'
+   *   'https://api.OneRouter.com'
    * );
    * ```
    */

@@ -1,7 +1,7 @@
 {
-  "name": "@paymenthub/sdk",
+  "name": "@OneRouter/sdk",
   "version": "0.1.0",
-  "description": "Official Node.js/TypeScript SDK for PaymentHub Unified Payment API",
+  "description": "Official Node.js/TypeScript SDK for OneRouter Unified Payment API",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

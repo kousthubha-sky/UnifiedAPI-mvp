@@ -16,7 +16,7 @@ from fastapi import Request
 from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 
-from app.logging import get_trace_id
+from app.app_logging import get_trace_id
 
 
 class ErrorCode(str, Enum):

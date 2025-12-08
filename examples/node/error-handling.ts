@@ -8,22 +8,22 @@
 
 import {
   UnifiedAPIClient,
-  PaymentHubError,
+  OneRouterError,
   ValidationError,
   AuthenticationError,
   RateLimitError,
   PaymentNotFoundError,
   NetworkError,
   TimeoutError,
-  isPaymentHubError,
+  isOneRouterError,
   isRetryableError,
 } from '../../sdk/src/index.js';
 
-const API_KEY = process.env.PAYMENTHUB_API_KEY || 'sk_test_example';
-const API_URL = process.env.PAYMENTHUB_API_URL || 'http://localhost:3000';
+const API_KEY = process.env.OneRouter_API_KEY || 'sk_test_example';
+const API_URL = process.env.OneRouter_API_URL || 'http://localhost:3000';
 
 async function main() {
-  console.log('🛡️  PaymentHub SDK - Error Handling Example\n');
+  console.log('🛡️  OneRouter SDK - Error Handling Example\n');
 
   const client = new UnifiedAPIClient({
     apiKey: API_KEY,
@@ -90,8 +90,8 @@ async function main() {
       console.log('✅ Caught PaymentNotFoundError');
       console.log(`   Message: ${error.message}`);
       console.log(`   Code: ${error.code}`);
-    } else if (error instanceof PaymentHubError) {
-      console.log('✅ Caught PaymentHubError');
+    } else if (error instanceof OneRouterError) {
+      console.log('✅ Caught OneRouterError');
       console.log(`   Message: ${error.message}`);
       console.log(`   Code: ${error.code}`);
     }
@@ -115,8 +115,8 @@ async function main() {
       console.log('✅ Caught AuthenticationError');
       console.log(`   Message: ${error.message}`);
       console.log(`   Status Code: ${error.statusCode}`);
-    } else if (error instanceof PaymentHubError) {
-      console.log('✅ Caught PaymentHubError (auth check may be disabled)');
+    } else if (error instanceof OneRouterError) {
+      console.log('✅ Caught OneRouterError (auth check may be disabled)');
       console.log(`   Code: ${error.code}`);
     }
   }
@@ -143,8 +143,8 @@ async function main() {
     } else if (error instanceof NetworkError) {
       console.log('✅ Caught NetworkError');
       console.log(`   Message: ${error.message}`);
-    } else if (error instanceof PaymentHubError) {
-      console.log('✅ Caught PaymentHubError');
+    } else if (error instanceof OneRouterError) {
+      console.log('✅ Caught OneRouterError');
       console.log(`   Code: ${error.code}`);
     }
   }
@@ -164,8 +164,8 @@ async function main() {
         payment_method: 'pm_card_visa',
       });
     } catch (error) {
-      if (isPaymentHubError(error)) {
-        console.log('✅ isPaymentHubError returned true');
+      if (isOneRouterError(error)) {
+        console.log('✅ isOneRouterError returned true');
         console.log(`   Error type: ${error.name}`);
         console.log(`   Code: ${error.code}`);
 
@@ -204,7 +204,7 @@ async function main() {
   console.log('─'.repeat(50));
 
   try {
-    throw new PaymentHubError(
+    throw new OneRouterError(
       'Payment declined',
       'PAYMENT_FAILED',
       400,
@@ -212,7 +212,7 @@ async function main() {
       { decline_code: 'insufficient_funds' }
     );
   } catch (error) {
-    if (error instanceof PaymentHubError) {
+    if (error instanceof OneRouterError) {
       const serialized = error.toJSON();
       console.log('✅ Serialized error for logging:');
       console.log(JSON.stringify(serialized, null, 2));
@@ -233,7 +233,7 @@ async function main() {
         console.log(`   Attempt ${attempt}/${maxAttempts}...`);
         return await client.payments.create(request);
       } catch (error) {
-        if (isPaymentHubError(error)) {
+        if (isOneRouterError(error)) {
           if (error instanceof RateLimitError && error.retryAfter) {
             console.log(`   Rate limited. Waiting ${error.retryAfter}s...`);
             await sleep(error.retryAfter * 1000);
@@ -264,7 +264,7 @@ async function main() {
     });
     console.log('✅ Payment created successfully');
   } catch (error) {
-    if (isPaymentHubError(error)) {
+    if (isOneRouterError(error)) {
       console.log(`❌ Failed after retries: ${error.message}`);
     }
   }

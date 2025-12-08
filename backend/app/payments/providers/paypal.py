@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 
 from app.config import Settings
-from app.logging import get_logger
+from app.app_logging import get_logger
 from app.payments.errors import (
     PaymentFailedError,
     PaymentNotFoundError,

@@ -1,5 +1,5 @@
 /**
- * HTTP Transport layer for PaymentHub SDK
+ * HTTP Transport layer for OneRouter SDK
  *
  * Handles HTTP requests with:
  * - HMAC request signing
@@ -17,7 +17,7 @@ import {
   ClientConfig,
 } from './types.js';
 import {
-  PaymentHubError,
+  OneRouterError,
   NetworkError,
   TimeoutError,
   isRetryableError,
@@ -108,7 +108,7 @@ export class HttpTransport implements Transport {
       'X-Trace-Id': traceId,
       'X-Request-Timestamp': timestamp,
       'X-SDK-Version': '0.1.0',
-      'User-Agent': 'PaymentHub-SDK/0.1.0 Node.js',
+      'User-Agent': 'OneRouter-SDK/0.1.0 Node.js',
     };
 
     // Add HMAC signature if enabled
@@ -170,7 +170,7 @@ export class HttpTransport implements Transport {
       // Handle error responses
       if (!response.ok) {
         const errorResponse = responseData as APIErrorResponse;
-        throw PaymentHubError.fromResponse(
+        throw OneRouterError.fromResponse(
           {
             error: errorResponse.error || `HTTP ${response.status}`,
             code: errorResponse.code || 'UNKNOWN_ERROR',
@@ -198,8 +198,8 @@ export class HttpTransport implements Transport {
         throw new NetworkError(error.message);
       }
 
-      // Re-throw PaymentHubErrors
-      if (error instanceof PaymentHubError) {
+      // Re-throw OneRouterErrors
+      if (error instanceof OneRouterError) {
         throw error;
       }
 
@@ -305,6 +305,91 @@ export class MockTransport implements Transport {
     handler: (body?: unknown, options?: RequestOptions) => Promise<T>
   ): this {
     return this.onRequest('GET', '/api/v1/payments', handler);
+  }
+
+  /**
+   * Set a handler for creating customers
+   */
+  onCreateCustomer<T>(
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('POST', '/api/v1/customers', handler);
+  }
+
+  /**
+   * Set a handler for updating customers
+   */
+  onUpdateCustomer<T>(
+    customerId: string,
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('PUT', `/api/v1/customers/${customerId}`, handler);
+  }
+
+  /**
+   * Set a handler for listing customers
+   */
+  onListCustomers<T>(
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('GET', '/api/v1/customers', handler);
+  }
+
+  /**
+   * Set a handler for deleting customers
+   */
+  onDeleteCustomer<T>(
+    customerId: string,
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('DELETE', `/api/v1/customers/${customerId}`, handler);
+  }
+
+  /**
+   * Set a handler for creating API keys
+   */
+  onCreateApiKey<T>(
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('POST', '/api/v1/api-keys', handler);
+  }
+
+  /**
+   * Set a handler for updating API keys
+   */
+  onUpdateApiKey<T>(
+    keyId: string,
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('PUT', `/api/v1/api-keys/${keyId}`, handler);
+  }
+
+  /**
+   * Set a handler for listing API keys
+   */
+  onListApiKeys<T>(
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('GET', '/api/v1/api-keys', handler);
+  }
+
+  /**
+   * Set a handler for deleting API keys
+   */
+  onDeleteApiKey<T>(
+    keyId: string,
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('DELETE', `/api/v1/api-keys/${keyId}`, handler);
+  }
+
+  /**
+   * Set a handler for health checks
+   */
+  onHealth<T>(
+    handler: (body?: unknown, options?: RequestOptions) => Promise<T>
+  ): this {
+    return this.onRequest('GET', '/health', handler);
   }
 
   /**

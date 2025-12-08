@@ -1,25 +1,25 @@
 /**
  * Basic Usage Example
  *
- * Demonstrates the basic usage of the PaymentHub SDK.
+ * Demonstrates the basic usage of the OneRouter SDK.
  *
  * Run with: npx tsx examples/node/basic-usage.ts
  *
  * Prerequisites:
  * 1. Start the backend server: cd backend && npm run dev
  * 2. Set environment variables or use defaults:
- *    - PAYMENTHUB_API_KEY (default: sk_test_example)
- *    - PAYMENTHUB_API_URL (default: http://localhost:3000)
+ *    - OneRouter_API_KEY (default: sk_test_example)
+ *    - OneRouter_API_URL (default: http://localhost:3000)
  */
 
-import { UnifiedAPIClient, PaymentHubError, isRetryableError } from '../../sdk/src/index.js';
+import { UnifiedAPIClient, OneRouterError, isRetryableError } from '../../sdk/src/index.js';
 
 // Configuration from environment
-const API_KEY = process.env.PAYMENTHUB_API_KEY || 'sk_test_example';
-const API_URL = process.env.PAYMENTHUB_API_URL || 'http://localhost:3000';
+const API_KEY = process.env.OneRouter_API_KEY || 'sk_test_example';
+const API_URL = process.env.OneRouter_API_URL || 'http://localhost:3000';
 
 async function main() {
-  console.log('🚀 PaymentHub SDK - Basic Usage Example\n');
+  console.log('🚀 OneRouter SDK - Basic Usage Example\n');
 
   // Initialize the client
   const client = new UnifiedAPIClient({
@@ -87,7 +87,7 @@ async function main() {
   } catch (error) {
     console.error('\n❌ Error occurred:');
 
-    if (error instanceof PaymentHubError) {
+    if (error instanceof OneRouterError) {
       console.error(`   Code: ${error.code}`);
       console.error(`   Message: ${error.message}`);
       console.error(`   Status: ${error.statusCode}`);

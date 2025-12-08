@@ -1,5 +1,5 @@
-const API_KEY_STORAGE_KEY = 'paymenthub_api_key';
-const CUSTOMER_ID_STORAGE_KEY = 'paymenthub_customer_id';
+const API_KEY_STORAGE_KEY = 'OneRouter_api_key';
+const CUSTOMER_ID_STORAGE_KEY = 'OneRouter_customer_id';
 
 export interface ApiResponse<T> {
   data?: T;

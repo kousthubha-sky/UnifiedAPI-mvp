@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
 from app.auth import AuthContext, get_auth_context
 from app.dependencies import get_supabase
@@ -19,7 +19,7 @@ from app.errors import (
     InternalError,
     NotFoundError,
 )
-from app.logging import get_logger, get_trace_id
+from app.app_logging import get_logger, get_trace_id
 from app.models import (
     CreateCustomerRequest,
     CustomerResponse,
@@ -95,6 +95,7 @@ async def create_customer(
     logger.info(
         "Creating customer",
         email=body.email,
+        user_id=body.user_id,
         tier=body.tier.value,
     )
 
@@ -104,35 +105,50 @@ async def create_customer(
 
     try:
         # Check if customer already exists
-        existing = supabase.table("customers").select("id").eq("email", body.email).execute()
+        existing = supabase.table("customers").select("id, user_id").eq("email", body.email).execute()
 
         if existing.data and len(existing.data) > 0:
-            raise ConflictError(
-                message="Customer with this email already exists",
-                code=ErrorCode.CUSTOMER_EXISTS,
-                details={"email": body.email},
+            # Return existing customer
+            customer_id = existing.data[0]["id"]
+            # Update user_id if not set
+            if body.user_id and not existing.data[0].get("user_id"):
+                supabase.table("customers").update({"user_id": body.user_id}).eq("id", customer_id).execute()
+            response = supabase.table("customers").select("*").eq("id", customer_id).single().execute()
+            if not response.data:
+                raise InternalError(message="Failed to fetch existing customer")
+            customer_data = response.data
+            logger.info(
+                "Customer already exists, returning existing",
+                customer_id=customer_id,
+                email=body.email,
             )
+        else:
+            # Create customer
+            now = datetime.now(UTC).isoformat()
+            insert_data = {
+                "email": body.email,
+                "user_id": body.user_id,
+                "tier": body.tier.value,
+                "created_at": now,
+                "updated_at": now,
+            }
 
-        # Create customer
-        now = datetime.now(UTC).isoformat()
-        insert_data = {
-            "email": body.email,
-            "tier": body.tier.value,
-            "created_at": now,
-            "updated_at": now,
-        }
+            if body.stripe_account_id:
+                insert_data["stripe_account_id"] = body.stripe_account_id
+            if body.paypal_account_id:
+                insert_data["paypal_account_id"] = body.paypal_account_id
 
-        if body.stripe_account_id:
-            insert_data["stripe_account_id"] = body.stripe_account_id
-        if body.paypal_account_id:
-            insert_data["paypal_account_id"] = body.paypal_account_id
+            response = supabase.table("customers").insert(insert_data).execute()
 
-        response = supabase.table("customers").insert(insert_data).execute()
+            if not response.data or len(response.data) == 0:
+                raise InternalError(message="Failed to create customer")
 
-        if not response.data or len(response.data) == 0:
-            raise InternalError(message="Failed to create customer")
-
-        customer_data = response.data[0]
+            customer_data = response.data[0]
+            logger.info(
+                "Customer created",
+                customer_id=customer_data["id"],
+                email=body.email,
+            )
         logger.info(
             "Customer created",
             customer_id=customer_data["id"],
@@ -312,20 +328,13 @@ async def update_customer(
 
 @router.delete(
     "/{customer_id}",
-    status_code=204,
     summary="Delete customer",
     description="Delete a customer account. Admin only.",
-    responses={
-        204: {"description": "Customer deleted"},
-        401: {"description": "Missing or invalid API key"},
-        403: {"description": "Access denied - admin only"},
-        404: {"description": "Customer not found"},
-    },
 )
 async def delete_customer(
     request: Request,
     customer_id: str,
-) -> None:
+) -> Response:
     """Delete a customer account.
 
     Args:
@@ -368,6 +377,8 @@ async def delete_customer(
             "Customer deleted",
             customer_id=customer_id,
         )
+
+        return Response(status_code=204)
 
     except NotFoundError:
         raise

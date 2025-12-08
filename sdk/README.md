@@ -1,8 +1,8 @@
-# @paymenthub/sdk
+# @OneRouter/sdk
 
-Official Node.js/TypeScript SDK for the PaymentHub Unified Payment API.
+Official Node.js/TypeScript SDK for the OneRouter Unified Payment API.
 
-[![npm version](https://badge.fury.io/js/@paymenthub%2Fsdk.svg)](https://badge.fury.io/js/@paymenthub%2Fsdk)
+[![npm version](https://badge.fury.io/js/@OneRouter%2Fsdk.svg)](https://badge.fury.io/js/@OneRouter%2Fsdk)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
@@ -20,13 +20,13 @@ Official Node.js/TypeScript SDK for the PaymentHub Unified Payment API.
 
 ```bash
 # npm
-npm install @paymenthub/sdk
+npm install @OneRouter/sdk
 
 # yarn
-yarn add @paymenthub/sdk
+yarn add @OneRouter/sdk
 
 # pnpm
-pnpm add @paymenthub/sdk
+pnpm add @OneRouter/sdk
 
 # Install from local path (during development)
 npm install ../sdk
@@ -37,11 +37,11 @@ npm install ../sdk
 ### ESM (Recommended)
 
 ```typescript
-import { UnifiedAPIClient } from '@paymenthub/sdk';
+import { UnifiedAPIClient } from '@OneRouter/sdk';
 
 const client = new UnifiedAPIClient({
   apiKey: 'sk_your_api_key',
-  baseUrl: 'https://api.paymenthub.com',
+  baseUrl: 'https://api.OneRouter.com',
 });
 
 // Create a payment
@@ -59,11 +59,11 @@ console.log(`Payment created: ${payment.id}`);
 ### CommonJS
 
 ```javascript
-const { UnifiedAPIClient } = require('@paymenthub/sdk');
+const { UnifiedAPIClient } = require('@OneRouter/sdk');
 
 const client = new UnifiedAPIClient({
   apiKey: 'sk_your_api_key',
-  baseUrl: 'https://api.paymenthub.com',
+  baseUrl: 'https://api.OneRouter.com',
 });
 
 // Use async/await in an async context
@@ -167,21 +167,21 @@ The SDK provides rich error classes for different failure scenarios:
 
 ```typescript
 import {
-  PaymentHubError,
+  OneRouterError,
   ValidationError,
   AuthenticationError,
   RateLimitError,
   PaymentNotFoundError,
   NetworkError,
   TimeoutError,
-  isPaymentHubError,
+  isOneRouterError,
   isRetryableError,
-} from '@paymenthub/sdk';
+} from '@OneRouter/sdk';
 
 try {
   await client.payments.create({...});
 } catch (error) {
-  if (isPaymentHubError(error)) {
+  if (isOneRouterError(error)) {
     console.log(`Error: ${error.message}`);
     console.log(`Code: ${error.code}`);
     console.log(`Status: ${error.statusCode}`);
@@ -222,7 +222,7 @@ try {
 ### Using Mock Transport
 
 ```typescript
-import { UnifiedAPIClient, MockTransport } from '@paymenthub/sdk';
+import { UnifiedAPIClient, MockTransport } from '@OneRouter/sdk';
 
 // Create client with mock transport
 const { client, mock } = UnifiedAPIClient.withMockTransport({
@@ -265,15 +265,15 @@ expect(requests[0].path).toBe('/api/v1/payments/create');
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PAYMENTHUB_API_KEY` | API key for authentication | - |
-| `PAYMENTHUB_API_URL` | Base URL of the API | `http://localhost:3000` |
+| `OneRouter_API_KEY` | API key for authentication | - |
+| `OneRouter_API_URL` | Base URL of the API | `http://localhost:3000` |
 
 ## Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/paymenthub.git
-cd paymenthub/sdk
+git clone https://github.com/your-org/OneRouter.git
+cd OneRouter/sdk
 
 # Install dependencies
 npm install
@@ -349,7 +349,7 @@ curl http://localhost:3000/health
 Enable debug logging by checking trace IDs in errors:
 ```typescript
 catch (error) {
-  if (isPaymentHubError(error)) {
+  if (isOneRouterError(error)) {
     console.log(`Trace ID: ${error.traceId}`);
     // Use this trace ID when contacting support
   }
@@ -378,4 +378,4 @@ ISC
 
 For issues and feature requests, please open a GitHub issue.
 
-For security vulnerabilities, please contact security@paymenthub.com.
+For security vulnerabilities, please contact security@OneRouter.com.

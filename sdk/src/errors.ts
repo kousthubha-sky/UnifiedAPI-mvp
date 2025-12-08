@@ -1,5 +1,5 @@
 /**
- * PaymentHub SDK Error Classes
+ * OneRouter SDK Error Classes
  *
  * Rich error classes that unwrap backend error codes and provide
  * structured error information for better debugging.
@@ -8,9 +8,9 @@
 import { ErrorCode, APIErrorResponse } from './types.js';
 
 /**
- * Base error class for all PaymentHub SDK errors
+ * Base error class for all OneRouter SDK errors
  */
-export class PaymentHubError extends Error {
+export class OneRouterError extends Error {
   /** Error code from the API */
   public readonly code: string;
   /** HTTP status code */
@@ -30,7 +30,7 @@ export class PaymentHubError extends Error {
     details?: Record<string, unknown>
   ) {
     super(message);
-    this.name = 'PaymentHubError';
+    this.name = 'OneRouterError';
     this.code = code;
     this.statusCode = statusCode;
     this.traceId = traceId;
@@ -60,9 +60,9 @@ export class PaymentHubError extends Error {
   }
 
   /**
-   * Create a PaymentHubError from an API error response
+   * Create a OneRouterError from an API error response
    */
-  static fromResponse(response: APIErrorResponse, statusCode: number): PaymentHubError {
+  static fromResponse(response: APIErrorResponse, statusCode: number): OneRouterError {
     return createTypedError(
       response.error,
       response.code,
@@ -91,7 +91,7 @@ export class PaymentHubError extends Error {
 /**
  * Error thrown when a request validation fails
  */
-export class ValidationError extends PaymentHubError {
+export class ValidationError extends OneRouterError {
   constructor(
     message: string,
     traceId?: string,
@@ -105,7 +105,7 @@ export class ValidationError extends PaymentHubError {
 /**
  * Error thrown when authentication fails
  */
-export class AuthenticationError extends PaymentHubError {
+export class AuthenticationError extends OneRouterError {
   constructor(
     message: string = 'Invalid or missing API key',
     traceId?: string,
@@ -119,7 +119,7 @@ export class AuthenticationError extends PaymentHubError {
 /**
  * Error thrown when access is forbidden
  */
-export class ForbiddenError extends PaymentHubError {
+export class ForbiddenError extends OneRouterError {
   constructor(
     message: string = 'Access denied',
     traceId?: string,
@@ -133,7 +133,7 @@ export class ForbiddenError extends PaymentHubError {
 /**
  * Error thrown when a resource is not found
  */
-export class NotFoundError extends PaymentHubError {
+export class NotFoundError extends OneRouterError {
   constructor(
     message: string = 'Resource not found',
     traceId?: string,
@@ -147,7 +147,7 @@ export class NotFoundError extends PaymentHubError {
 /**
  * Error thrown when a payment-specific resource is not found
  */
-export class PaymentNotFoundError extends PaymentHubError {
+export class PaymentNotFoundError extends OneRouterError {
   constructor(
     message: string = 'Payment not found',
     traceId?: string,
@@ -161,7 +161,7 @@ export class PaymentNotFoundError extends PaymentHubError {
 /**
  * Error thrown when rate limit is exceeded
  */
-export class RateLimitError extends PaymentHubError {
+export class RateLimitError extends OneRouterError {
   /** Retry-After header value in seconds */
   public readonly retryAfter?: number;
 
@@ -180,7 +180,7 @@ export class RateLimitError extends PaymentHubError {
 /**
  * Error thrown when a payment operation fails
  */
-export class PaymentError extends PaymentHubError {
+export class PaymentError extends OneRouterError {
   constructor(
     message: string,
     code: string = ErrorCode.PAYMENT_FAILED,
@@ -195,7 +195,7 @@ export class PaymentError extends PaymentHubError {
 /**
  * Error thrown when a refund operation fails
  */
-export class RefundError extends PaymentHubError {
+export class RefundError extends OneRouterError {
   constructor(
     message: string,
     traceId?: string,
@@ -209,7 +209,7 @@ export class RefundError extends PaymentHubError {
 /**
  * Error thrown when there's a payment provider issue
  */
-export class ProviderError extends PaymentHubError {
+export class ProviderError extends OneRouterError {
   constructor(
     message: string,
     traceId?: string,
@@ -223,7 +223,7 @@ export class ProviderError extends PaymentHubError {
 /**
  * Error thrown when a network error occurs
  */
-export class NetworkError extends PaymentHubError {
+export class NetworkError extends OneRouterError {
   constructor(
     message: string = 'Network error occurred',
     details?: Record<string, unknown>
@@ -236,7 +236,7 @@ export class NetworkError extends PaymentHubError {
 /**
  * Error thrown when a request times out
  */
-export class TimeoutError extends PaymentHubError {
+export class TimeoutError extends OneRouterError {
   constructor(
     message: string = 'Request timed out',
     details?: Record<string, unknown>
@@ -249,7 +249,7 @@ export class TimeoutError extends PaymentHubError {
 /**
  * Error thrown for internal server errors
  */
-export class InternalError extends PaymentHubError {
+export class InternalError extends OneRouterError {
   constructor(
     message: string = 'Internal server error',
     traceId?: string,
@@ -269,7 +269,7 @@ function createTypedError(
   statusCode: number,
   traceId?: string,
   details?: Record<string, unknown>
-): PaymentHubError {
+): OneRouterError {
   switch (code) {
     case ErrorCode.VALIDATION_ERROR:
       return new ValidationError(message, traceId, details);
@@ -304,17 +304,17 @@ function createTypedError(
 }
 
 /**
- * Type guard to check if an error is a PaymentHubError
+ * Type guard to check if an error is a OneRouterError
  */
-export function isPaymentHubError(error: unknown): error is PaymentHubError {
-  return error instanceof PaymentHubError;
+export function isOneRouterError(error: unknown): error is OneRouterError {
+  return error instanceof OneRouterError;
 }
 
 /**
  * Type guard to check if an error is retryable
  */
 export function isRetryableError(error: unknown): boolean {
-  if (error instanceof PaymentHubError) {
+  if (error instanceof OneRouterError) {
     return error.retryable;
   }
   // Network-level errors are generally retryable

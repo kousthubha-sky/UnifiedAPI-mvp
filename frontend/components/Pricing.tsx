@@ -73,10 +73,8 @@ export default function Pricing() {
 
   const getCtaLink = (tier: PricingTier) => {
     if (user) {
-      // Authenticated users go to dashboard
       return '/dashboard';
     }
-    // Non-authenticated users go to signup with plan
     if (tier.name === 'Scale') {
       return '/signup?plan=scale';
     } else if (tier.name === 'Growth') {
@@ -86,16 +84,16 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="w-full py-20 md:py-28 bg-white px-4">
+    <section id="pricing" className="w-full py-20 md:py-28 bg-[#050505] px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <span className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-full text-sm font-medium text-primary">
+          <span className="px-4 py-2 bg-[#1a1a1a] border border-primary rounded-full text-sm font-medium text-primary font-mono">
             Simple Pricing
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-6 mb-4">
-            Choose the Plan That Fits Your Business
+          <h2 className="text-3xl md:text-4xl font-bold text-white mt-6 mb-4 font-mono">
+            Choose the Plan That <span className="text-primary">Fits</span> Your Business
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto font-mono">
             Start free and scale as you grow. No hidden fees, no surprises.
           </p>
         </div>
@@ -105,28 +103,28 @@ export default function Pricing() {
             <div
               key={tier.name}
               className={clsx(
-                'relative rounded-2xl border p-8 flex flex-col',
+                'relative rounded-2xl border p-8 flex flex-col transition-all duration-300',
                 tier.highlighted
-                  ? 'border-primary bg-blue-50/50 shadow-lg scale-105 z-10'
-                  : 'border-gray-200 bg-white hover:border-gray-300 transition-colors'
+                  ? 'border-primary bg-[#0a0a0a] shadow-lg shadow-primary/20 scale-105 z-10'
+                  : 'border-[#222] bg-[#0a0a0a] hover:border-[#444]'
               )}
             >
               {tier.highlighted && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary text-white text-sm font-medium px-4 py-1 rounded-full">
+                  <span className="bg-primary text-black text-sm font-bold px-4 py-1 rounded-full font-mono">
                     Most Popular
                   </span>
                 </div>
               )}
 
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900">{tier.name}</h3>
-                <p className="text-gray-500 text-sm mt-2">{tier.description}</p>
+                <h3 className="text-xl font-bold text-white font-mono">{tier.name}</h3>
+                <p className="text-gray-400 text-sm mt-2 font-mono">{tier.description}</p>
               </div>
 
               <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">{tier.price}</span>
-                <span className="text-gray-500">{tier.period}</span>
+                <span className="text-4xl font-bold text-white font-mono">{tier.price}</span>
+                <span className="text-gray-400 font-mono">{tier.period}</span>
               </div>
 
               <ul className="space-y-3 mb-8 flex-1">
@@ -134,7 +132,7 @@ export default function Pricing() {
                   <li key={feature} className="flex items-start gap-3">
                     <svg
                       className={clsx(
-                        'h-5 w-5 flex-shrink-0 mt-0.5',
+                        'h-5 w-5 flex shrink-0 mt-0.5',
                         tier.highlighted ? 'text-primary' : 'text-green-500'
                       )}
                       viewBox="0 0 20 20"
@@ -146,31 +144,31 @@ export default function Pricing() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span className="text-gray-600 text-sm">{feature}</span>
+                    <span className="text-gray-300 text-sm font-mono">{feature}</span>
                   </li>
                 ))}
               </ul>
 
-               <Link
-                 href={getCtaLink(tier)}
-                 className={clsx(
-                   'block w-full text-center py-3 px-4 rounded-lg font-semibold transition-colors',
-                   tier.highlighted
-                     ? 'bg-primary text-white hover:bg-blue-700'
-                     : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                 )}
-               >
-                 {tier.cta}
-               </Link>
+              <Link
+                href={getCtaLink(tier)}
+                className={clsx(
+                  'block w-full text-center py-3 px-4 rounded-lg font-bold transition-colors font-mono',
+                  tier.highlighted
+                    ? 'bg-primary text-black hover:bg-[#00dd77]'
+                    : 'bg-[#1a1a1a] border border-primary text-primary hover:bg-primary hover:text-black'
+                )}
+              >
+                {tier.cta}
+              </Link>
             </div>
           ))}
         </div>
 
-        <p className="text-center text-gray-500 text-sm mt-12">
+        <p className="text-center text-gray-500 text-sm mt-12 font-mono">
           All plans include SSL encryption, PCI compliance, and basic fraud detection.
           <br />
           Need a custom plan?{' '}
-          <a href="mailto:sales@paymenthub.dev" className="text-primary hover:underline">
+          <a href="mailto:sales@OneRouter.dev" className="text-primary hover:underline">
             Contact us
           </a>
         </p>

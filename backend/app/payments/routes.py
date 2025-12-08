@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 
 from app.config import Settings, get_settings
 from app.dependencies import RedisDep, SupabaseDep, get_redis, get_supabase
-from app.logging import get_logger
+from app.app_logging import get_logger
 from app.payments.service import PaymentService
 from app.payments.types import (
     CreatePaymentRequest,

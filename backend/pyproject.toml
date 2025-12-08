@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "ISC" }
 authors = [
-    { name = "PaymentHub Team" }
+    { name = "OneRouter Team" }
 ]
 keywords = ["payments", "api", "fastapi", "stripe", "paypal"]
 

@@ -1,8 +1,8 @@
-# PaymentHub Frontend
+# OneRouter Frontend
 
 A Next.js 15 + React 19 frontend application for the unified payment API.
 
-![Landing Page](https://via.placeholder.com/800x400?text=PaymentHub+Landing+Page)
+![Landing Page](https://via.placeholder.com/800x400?text=OneRouter+Landing+Page)
 
 ## Features
 

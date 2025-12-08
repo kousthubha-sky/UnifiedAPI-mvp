@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getStoredApiKey } from './api';
 
 export interface UsageMetrics {
   date: string;
@@ -25,7 +26,8 @@ export function useMetrics(accessToken: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchMetrics = useCallback(async () => {
-    if (!accessToken) return;
+    const apiKey = getStoredApiKey();
+    if (!apiKey) return;
 
     setLoading(true);
     setError(null);
@@ -34,7 +36,7 @@ export function useMetrics(accessToken: string | null) {
       const response = await fetch(`${API_BASE_URL}/api/v1/metrics`, {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          'x-api-key': apiKey,
         },
       });
 
@@ -42,7 +44,7 @@ export function useMetrics(accessToken: string | null) {
         const data = await response.json();
         setMetrics(data);
       } else {
-        // If the metrics endpoint doesn't exist, generate mock data for demo
+        // If the metrics endpoint fails, generate mock data for demo
         const mockMetrics = generateMockMetrics();
         setMetrics(mockMetrics);
       }
@@ -54,7 +56,7 @@ export function useMetrics(accessToken: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     if (accessToken) {

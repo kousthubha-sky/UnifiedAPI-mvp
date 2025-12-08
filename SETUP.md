@@ -1,6 +1,6 @@
-# Complete Setup Guide for PaymentHub API
+# Complete Setup Guide for OneRouter API
 
-This guide walks through the complete setup process for the PaymentHub API, including database schema initialization, customer management, and API key generation.
+This guide walks through the complete setup process for the OneRouter API, including database schema initialization, customer management, and API key generation.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ This guide walks through the complete setup process for the PaymentHub API, incl
 2. Sign in or create an account
 3. Click "New Project"
 4. Enter your project details:
-   - Project name: e.g., "PaymentHub"
+   - Project name: e.g., "OneRouter"
    - Database password: Use a strong password
    - Region: Select closest to your location
 5. Wait for project initialization (1-2 minutes)

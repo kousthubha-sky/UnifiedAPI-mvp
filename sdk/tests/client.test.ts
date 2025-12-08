@@ -7,7 +7,7 @@ import {
   UnifiedAPIClient,
   MockTransport,
   ValidationError,
-  PaymentHubError,
+  OneRouterError,
   NetworkError,
   CreatePaymentRequest,
   CreatePaymentResponse,
@@ -40,7 +40,7 @@ describe('UnifiedAPIClient', () => {
         apiKey: 'sk_test_123',
       });
 
-      expect(client.baseUrl).toBe('http://localhost:3000');
+      expect(client.baseUrl).toBe('http://localhost:8000');
     });
 
     it('should use default timeout when not provided', () => {
@@ -66,7 +66,7 @@ describe('UnifiedAPIClient', () => {
       const client = UnifiedAPIClient.forDevelopment('sk_test_123');
 
       expect(client).toBeInstanceOf(UnifiedAPIClient);
-      expect(client.baseUrl).toBe('http://localhost:3000');
+      expect(client.baseUrl).toBe('http://localhost:8000');
     });
 
     it('should create client for production', () => {
@@ -481,7 +481,7 @@ describe('Error handling', () => {
 
   it('should propagate errors from mock', async () => {
     mock.onCreatePayment(async () => {
-      throw new PaymentHubError(
+      throw new OneRouterError(
         'Payment failed',
         'PAYMENT_FAILED',
         400,
@@ -497,6 +497,6 @@ describe('Error handling', () => {
         customer_id: 'cust_123',
         payment_method: 'pm_card_visa',
       })
-    ).rejects.toThrow(PaymentHubError);
+    ).rejects.toThrow(OneRouterError);
   });
 });

@@ -50,7 +50,7 @@ export default function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -58,24 +58,24 @@ export default function LoginPage() {
 
   if (magicLinkSent) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-            <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="bg-[#0a0a0a] border border-primary rounded-xl shadow-lg shadow-primary/20 p-8 text-center">
+            <div className="h-16 w-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary">
+              <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
-            <p className="text-gray-600 mb-6">
-              We&apos;ve sent a magic link to <strong>{email}</strong>. Click the link in the email to sign in.
+            <h2 className="text-2xl font-bold text-white mb-2 font-mono">Check your email</h2>
+            <p className="text-gray-400 mb-6 font-mono text-sm">
+              We&apos;ve sent a magic link to <strong className="text-primary">{email}</strong>. Click the link in the email to sign in.
             </p>
             <button
               onClick={() => {
                 setMagicLinkSent(false);
                 setEmail('');
               }}
-              className="text-primary hover:underline"
+              className="text-primary hover:text-[#00dd77] transition-colors font-mono text-sm"
             >
               Use a different email
             </button>
@@ -86,17 +86,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12">
+      {/* Animated background grid */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0a0a0a_1px,transparent_1px),linear-gradient(to_bottom,#0a0a0a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-20" />
+      
+      <div className="max-w-md w-full relative z-10">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-bold text-primary">
-            PaymentHub
+          <Link href="/" className="text-2xl font-bold text-primary hover:text-[#00dd77] transition-colors font-mono">
+            OneRouter
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-6">Welcome back</h1>
-          <p className="text-gray-600 mt-2">Sign in to your account to continue</p>
+          <h1 className="text-2xl font-bold text-white mt-6 font-mono">Welcome back</h1>
+          <p className="text-gray-400 mt-2 font-mono text-sm">Sign in to your account to continue</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="bg-[#0a0a0a] border border-[#222] rounded-xl shadow-lg p-8">
           {error && (
             <Alert
               type="error"
@@ -107,23 +110,23 @@ export default function LoginPage() {
           )}
 
           {/* Auth mode toggle */}
-          <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+          <div className="flex mb-6 bg-[#1a1a1a] rounded-lg p-1 border border-[#222]">
             <button
               onClick={() => setAuthMode('password')}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors font-mono ${
                 authMode === 'password'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-primary text-black'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
               Password
             </button>
             <button
               onClick={() => setAuthMode('magic')}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors font-mono ${
                 authMode === 'magic'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-primary text-black'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
               Magic Link
@@ -133,7 +136,7 @@ export default function LoginPage() {
           <form onSubmit={authMode === 'password' ? handlePasswordLogin : handleMagicLinkLogin}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1 font-mono">
                   Email address
                 </label>
                 <input
@@ -141,7 +144,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
                   placeholder="you@example.com"
                   required
                 />
@@ -149,7 +152,7 @@ export default function LoginPage() {
 
               {authMode === 'password' && (
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1 font-mono">
                     Password
                   </label>
                   <input
@@ -157,7 +160,7 @@ export default function LoginPage() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
                     placeholder="••••••••"
                     required
                   />
@@ -167,10 +170,10 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                className="w-full py-3 bg-primary text-black font-bold rounded-lg hover:bg-[#00dd77] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-mono"
               >
                 {loading ? (
-                  <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+                  <LoadingSpinner size="sm" className="border-black border-t-transparent" />
                 ) : authMode === 'password' ? (
                   'Sign In'
                 ) : (
@@ -181,20 +184,20 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
+            <p className="text-gray-400 text-sm font-mono">
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-primary font-medium hover:underline">
+              <Link href="/signup" className="text-primary font-bold hover:text-[#00dd77] transition-colors">
                 Sign up
               </Link>
             </p>
           </div>
         </div>
 
-        <p className="text-center text-gray-500 text-xs mt-8">
+        <p className="text-center text-gray-500 text-xs mt-8 font-mono">
           By signing in, you agree to our{' '}
-          <a href="#" className="text-primary hover:underline">Terms of Service</a>
+          <a href="#" className="text-primary hover:text-[#00dd77] transition-colors">Terms of Service</a>
           {' '}and{' '}
-          <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+          <a href="#" className="text-primary hover:text-[#00dd77] transition-colors">Privacy Policy</a>
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 # Database Setup
 
-This directory contains the database schema and migration scripts for the PaymentHub API.
+This directory contains the database schema and migration scripts for the OneRouter API.
 
 ## Supabase Setup
 

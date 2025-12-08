@@ -1,15 +1,15 @@
 /**
- * PaymentHub SDK
+ * OneRouter SDK
  *
- * Official Node.js/TypeScript SDK for the PaymentHub Unified Payment API.
+ * Official Node.js/TypeScript SDK for the OneRouter Unified Payment API.
  *
  * @example
  * ```typescript
- * import { UnifiedAPIClient } from '@paymenthub/sdk';
+ * import { UnifiedAPIClient } from '@OneRouter/sdk';
  *
  * const client = new UnifiedAPIClient({
  *   apiKey: 'sk_your_api_key',
- *   baseUrl: 'https://api.paymenthub.com',
+ *   baseUrl: 'https://api.OneRouter.com',
  * });
  *
  * // Create a payment
@@ -41,6 +41,21 @@ export type {
   ListPaymentsRequest,
   ListPaymentsResponse,
   PaymentRecord,
+  CustomerTier,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
+  CustomerResponse,
+  ListCustomersRequest,
+  ListCustomersResponse,
+  CreateApiKeyRequest,
+  UpdateApiKeyRequest,
+  ApiKeyResponse,
+  CreateApiKeyResponse,
+  RotateApiKeyResponse,
+  ListApiKeysResponse,
+  DeleteApiKeyResponse,
+  RevokeApiKeyResponse,
+  HealthResponse,
   APIErrorResponse,
   Transport,
 } from './types.js';
@@ -49,7 +64,7 @@ export { ErrorCode } from './types.js';
 
 // Errors
 export {
-  PaymentHubError,
+  OneRouterError,
   ValidationError,
   AuthenticationError,
   ForbiddenError,
@@ -62,7 +77,7 @@ export {
   NetworkError,
   TimeoutError,
   InternalError,
-  isPaymentHubError,
+  isOneRouterError,
   isRetryableError,
 } from './errors.js';
 
@@ -71,3 +86,5 @@ export { HttpTransport, MockTransport } from './transport.js';
 
 // Resources (for advanced typing)
 export { PaymentsResource } from './resources/payments.js';
+export { CustomersResource } from './resources/customers.js';
+export { ApiKeysResource } from './resources/api_keys.js';

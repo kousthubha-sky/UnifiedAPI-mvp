@@ -18,7 +18,7 @@ from uuid import uuid4
 from supabase import Client as SupabaseClient
 
 from app.config import Settings
-from app.logging import get_logger, get_trace_id
+from app.app_logging import get_logger, get_trace_id
 from app.payments.audit import (
     log_payment_failure,
     log_payment_success,

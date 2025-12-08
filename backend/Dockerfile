@@ -1,4 +1,4 @@
-# PaymentHub Backend - FastAPI
+# OneRouter Backend - FastAPI
 # Multi-stage build for optimized production image
 
 # ============================================

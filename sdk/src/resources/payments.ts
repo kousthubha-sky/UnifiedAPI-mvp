@@ -2,7 +2,7 @@
  * Payments Resource
  *
  * Provides methods for creating, refunding, and listing payments
- * through the PaymentHub API.
+ * through the OneRouter API.
  */
 
 import {

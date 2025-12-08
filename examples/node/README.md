@@ -1,6 +1,6 @@
-# PaymentHub SDK Examples
+# OneRouter SDK Examples
 
-This directory contains example scripts demonstrating how to use the PaymentHub SDK.
+This directory contains example scripts demonstrating how to use the OneRouter SDK.
 
 ## Prerequisites
 
@@ -19,8 +19,8 @@ This directory contains example scripts demonstrating how to use the PaymentHub 
 
 3. **Set environment variables (optional):**
    ```bash
-   export PAYMENTHUB_API_KEY=sk_your_api_key
-   export PAYMENTHUB_API_URL=http://localhost:3000
+   export OneRouter_API_KEY=sk_your_api_key
+   export OneRouter_API_URL=http://localhost:3000
    ```
 
 ## Running Examples
@@ -93,13 +93,13 @@ Demonstrates proper error handling:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PAYMENTHUB_API_KEY` | API key for authentication | `sk_test_example` |
-| `PAYMENTHUB_API_URL` | Base URL of the API | `http://localhost:3000` |
+| `OneRouter_API_KEY` | API key for authentication | `sk_test_example` |
+| `OneRouter_API_URL` | Base URL of the API | `http://localhost:3000` |
 
 ## Tips
 
 1. **Use idempotency keys** for payment creation to safely retry failed requests
-2. **Handle errors properly** using the type guards (`isPaymentHubError`, `isRetryableError`)
+2. **Handle errors properly** using the type guards (`isOneRouterError`, `isRetryableError`)
 3. **Implement retry logic** for retryable errors with exponential backoff
 4. **Log trace IDs** from errors for debugging
 5. **Use pagination** when listing large numbers of payments

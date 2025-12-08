@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import clsx from 'clsx';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 import { useAuth } from '@/lib/auth-context';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, loading, signOut } = useAuth();
+  const { customer, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (href: string): boolean => pathname === href;
@@ -19,69 +20,61 @@ export default function Navbar() {
     { href: '/#pricing', label: 'Pricing' },
   ];
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <nav className="bg-black  backdrop-blur-3xl sticky top-0 z-50">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 bg-[#0a0a0a]/80 backdrop-blur-md rounded-4xl">
+        <div className="flex justify-between items-center-safe h-16">
           <div className="flex items-center gap-8">
-            <Link href="/" className="font-bold text-xl text-primary hover:text-blue-700 transition-colors">
-              PaymentHub
+            <Link href="/" className="font-bold text-xl text-primary hover:text-[#00dd77] transition-colors font-mono">
+              OneRouter
             </Link>
-            <div className="hidden md:flex gap-6">
+            
+          </div>
+          <div className="hidden md:flex gap-6">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   className={clsx(
-                    'text-sm font-medium transition-colors',
-                    isActive(link.href) ? 'text-primary' : 'text-gray-600 hover:text-gray-900'
+                    'text-sm font-medium transition-colors font-mono',
+                    isActive(link.href) ? 'text-primary' : 'text-gray-400 hover:text-white'
                   )}
                 >
                   {link.label}
                 </Link>
               ))}
             </div>
-          </div>
-          
           <div className="hidden md:flex items-center gap-4">
             {loading ? (
-              <div className="h-4 w-20 bg-gray-200 animate-pulse rounded" />
-            ) : user ? (
-              <>
-                <Link
-                  href="/dashboard"
-                  className={clsx(
-                    'text-sm font-medium transition-colors',
-                    isActive('/dashboard') ? 'text-primary' : 'text-gray-600 hover:text-gray-900'
-                  )}
-                >
-                  Dashboard
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </>
+              <div className="h-4 w-20 bg-[#1a1a1a] animate-pulse rounded" />
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  className="text-sm font-medium px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Get Started
-                </Link>
+                <SignedOut>
+                  <SignInButton>
+                    <button className="text-sm font-medium text-gray-400 hover:text-white transition-colors font-mono">
+                      Sign In
+                    </button>
+                  </SignInButton>
+                  <SignUpButton>
+                    <button className="text-sm font-bold px-4 py-2 bg-primary text-black rounded-lg hover:bg-[#00dd77] transition-colors font-mono">
+                      Get Started
+                    </button>
+                  </SignUpButton>
+                </SignedOut>
+                <SignedIn>
+                  {customer && (
+                    <Link
+                      href="/dashboard"
+                      className={clsx(
+                        'text-sm font-medium transition-colors font-mono',
+                        isActive('/dashboard') ? 'text-primary' : 'text-gray-400 hover:text-white'
+                      )}
+                    >
+                      Dashboard
+                    </Link>
+                  )}
+                  <UserButton />
+                </SignedIn>
               </>
             )}
           </div>
@@ -89,7 +82,7 @@ export default function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+            className="md:hidden p-2 text-gray-400 hover:text-white"
             aria-label="Toggle menu"
           >
             <svg
@@ -110,7 +103,7 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
+        <div className="md:hidden border-t border-[#222] bg-[#0a0a0a]">
           <div className="px-4 py-4 space-y-3">
             {navLinks.map((link) => (
               <Link
@@ -118,51 +111,46 @@ export default function Navbar() {
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={clsx(
-                  'block text-base font-medium transition-colors py-2',
-                  isActive(link.href) ? 'text-primary' : 'text-gray-600 hover:text-gray-900'
+                  'block text-base font-medium transition-colors py-2 font-mono',
+                  isActive(link.href) ? 'text-primary' : 'text-gray-400 hover:text-white'
                 )}
               >
                 {link.label}
               </Link>
             ))}
-            <hr className="border-gray-200" />
-            {user ? (
-              <>
+            <hr className="border-[#222]" />
+            <SignedOut>
+              <SignInButton>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full text-left text-base font-medium text-gray-400 hover:text-white py-2 font-mono"
+                >
+                  Sign In
+                </button>
+              </SignInButton>
+              <SignUpButton>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block text-base font-bold text-center px-4 py-2 bg-primary text-black rounded-lg hover:bg-[#00dd77] transition-colors font-mono"
+                >
+                  Get Started
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              {customer && (
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block text-base font-medium text-gray-600 hover:text-gray-900 py-2"
+                  className="block text-base font-medium text-gray-400 hover:text-white py-2 font-mono"
                 >
                   Dashboard
                 </Link>
-                <button
-                  onClick={() => {
-                    handleSignOut();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="block w-full text-left text-base font-medium text-gray-600 hover:text-gray-900 py-2"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-base font-medium text-gray-600 hover:text-gray-900 py-2"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block text-base font-medium text-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
+              )}
+              <div className="py-2">
+                <UserButton />
+              </div>
+            </SignedIn>
           </div>
         </div>
       )}

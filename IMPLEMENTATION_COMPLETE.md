@@ -1,6 +1,6 @@
 # Supabase Schema & Auth Setup - Implementation Complete
 
-This document summarizes the complete implementation of the Supabase schema and authentication setup for the PaymentHub API.
+This document summarizes the complete implementation of the Supabase schema and authentication setup for the OneRouter API.
 
 ## ✅ All Acceptance Criteria Met
 

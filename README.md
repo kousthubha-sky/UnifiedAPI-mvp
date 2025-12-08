@@ -329,11 +329,11 @@ Custom utilities are available:
 ### Quick Start
 
 ```typescript
-import { UnifiedAPIClient } from '@paymenthub/sdk';
+import { UnifiedAPIClient } from '@OneRouter/sdk';
 
 const client = new UnifiedAPIClient({
   apiKey: 'sk_your_api_key',
-  baseUrl: 'https://api.paymenthub.com',
+  baseUrl: 'https://api.OneRouter.com',
 });
 
 // Create a payment
@@ -376,9 +376,9 @@ The SDK follows [Semantic Versioning](https://semver.org/):
 
 | Tag | Purpose | Example |
 |-----|---------|---------|
-| `latest` | Stable releases (default) | `npm install @paymenthub/sdk` |
-| `next` | Pre-release versions | `npm install @paymenthub/sdk@next` |
-| `canary` | Development builds | `npm install @paymenthub/sdk@canary` |
+| `latest` | Stable releases (default) | `npm install @OneRouter/sdk` |
+| `next` | Pre-release versions | `npm install @OneRouter/sdk@next` |
+| `canary` | Development builds | `npm install @OneRouter/sdk@canary` |
 
 ### Publishing Steps
 

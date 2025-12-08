@@ -10,7 +10,7 @@ from typing import Any
 
 from supabase import Client as SupabaseClient
 
-from app.logging import audit_log, get_logger, get_trace_id
+from app.app_logging import audit_log, get_logger, get_trace_id
 
 logger = get_logger("payments.audit")
 

@@ -8,7 +8,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Alert from '@/components/ui/Alert';
 import EmptyState from '@/components/ui/EmptyState';
 import Tabs, { type Tab } from '@/components/ui/Tabs';
-import Card, { CardHeader } from '@/components/ui/Card';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,7 +139,7 @@ export default function Dashboard() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -149,22 +150,22 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black">
       {/* Dashboard Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="bg-[#000000] ">
+        <div className="max-w-5xl pt-15 mx-auto border-b border-[#222] px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-2xl font-bold text-white font-mono">Dashboard</h1>
+              <p className="text-gray-400 mt-1 font-mono text-sm">
                 Manage your API keys, settings, and view usage analytics
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500">{user.email}</span>
+              <span className="text-sm text-gray-500 font-mono">{user.email}</span>
               <button
                 onClick={handleSignOut}
-                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-sm text-gray-400 hover:text-primary transition-colors font-mono"
               >
                 Sign out
               </button>
@@ -173,7 +174,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Alerts */}
         {error && (
           <Alert
@@ -200,66 +201,72 @@ export default function Dashboard() {
           <div className="space-y-6">
             {/* Generate new key */}
             <Card>
-              <CardHeader
-                title="Generate New API Key"
-                description="Create a new API key to access the payment processing endpoints."
-              />
-              <div className="flex flex-col sm:flex-row gap-4">
-                <input
-                  type="text"
-                  value={newKeyName}
-                  onChange={(e) => setNewKeyName(e.target.value)}
-                  placeholder="Key name (optional)"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-                <button
-                  onClick={handleGenerateKey}
-                  disabled={generating}
-                  className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  {generating ? <LoadingSpinner size="sm" className="border-white border-t-transparent" /> : 'Generate Key'}
-                </button>
-              </div>
-
-              {/* New key display */}
-              {newKey && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-700 mb-2 font-medium">
-                    🎉 Your new API key (copy it now!):
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 p-2 bg-white border border-green-300 rounded text-sm font-mono break-all">
-                      {newKey}
-                    </code>
-                    <button
-                      onClick={() => handleCopyKey(newKey, 'new')}
-                      className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      {copiedId === 'new' ? '✓ Copied' : 'Copy'}
-                    </button>
-                  </div>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Generate New API Key</CardTitle>
+                <CardDescription className="font-mono">
+                  Create a new API key to access the payment processing endpoints.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    placeholder="Key name (optional)"
+                    className="flex-1 px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
+                  />
+                  <button
+                    onClick={handleGenerateKey}
+                    disabled={generating}
+                    className="px-6 py-2 bg-primary text-black font-bold rounded-lg hover:bg-[#00dd77] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-mono"
+                  >
+                    {generating ? <LoadingSpinner size="sm" className="border-black border-t-transparent" /> : 'Generate Key'}
+                  </button>
                 </div>
-              )}
+
+                {/* New key display */}
+                {newKey && (
+                  <div className="mt-4 p-4 bg-primary/10 border border-primary rounded-lg">
+                    <p className="text-sm text-primary mb-2 font-bold font-mono">
+                      🎉 Your new API key (copy it now!):
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 p-2 bg-[#0a0a0a] border border-primary rounded text-sm font-mono break-all text-white">
+                        {newKey}
+                      </code>
+                      <button
+                        onClick={() => handleCopyKey(newKey, 'new')}
+                        className="px-4 py-2 bg-primary text-black text-sm font-bold rounded-lg hover:bg-[#00dd77] transition-colors font-mono"
+                      >
+                        {copiedId === 'new' ? '✓ Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
             </Card>
 
             {/* API Keys List */}
-            <Card padding="none">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Your API Keys</h2>
-              </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Your API Keys</CardTitle>
+              </CardHeader>
 
               {apiKeys.length === 0 ? (
-                <EmptyState
-                  icon="🔑"
-                  title="No API keys yet"
-                  description="Generate your first API key to start making API requests."
-                  action={{
-                    label: 'Generate API Key',
-                    onClick: () => document.querySelector('input')?.focus(),
-                  }}
-                />
+                <CardContent>
+                  <EmptyState
+                    icon="🔑"
+                    title="No API keys yet"
+                    description="Generate your first API key to start making API requests."
+                    action={{
+                      label: 'Generate API Key',
+                      onClick: () => document.querySelector('input')?.focus(),
+                    }}
+                  />
+                </CardContent>
               ) : (
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-[#222]">
                   {apiKeys.map((apiKey: ApiKey) => (
                     <ApiKeyRow
                       key={apiKey.id}
@@ -278,83 +285,91 @@ export default function Dashboard() {
           <div className="space-y-6">
             {/* Account Info */}
             <Card>
-              <CardHeader
-                title="Account Information"
-                description="Your account details and subscription tier."
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <p className="text-gray-900">{user.email}</p>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Account Information</CardTitle>
+                <CardDescription className="font-mono">
+                  Your account details and subscription tier.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Email</label>
+                    <p className="text-white font-mono">{user.email}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Plan</label>
+                    <Badge className="capitalize font-mono">
+                      {customer?.tier || 'starter'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Customer ID</label>
+                    <code className="text-sm text-gray-300 bg-[#1a1a1a] px-2 py-1 rounded font-mono">
+                      {customer?.id || user.id}
+                    </code>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Member Since</label>
+                    <p className="text-white font-mono">
+                      {customer?.created_at 
+                        ? new Date(customer.created_at).toLocaleDateString()
+                        : new Date().toLocaleDateString()
+                      }
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 capitalize">
-                    {customer?.tier || 'starter'}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
-                  <code className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                    {customer?.id || user.id}
-                  </code>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
-                  <p className="text-gray-900">
-                    {customer?.created_at 
-                      ? new Date(customer.created_at).toLocaleDateString()
-                      : new Date().toLocaleDateString()
-                    }
-                  </p>
-                </div>
-              </div>
+              </CardContent>
             </Card>
 
             {/* Provider Credentials */}
             <Card>
-              <CardHeader
-                title="Payment Provider Credentials"
-                description="Configure your payment provider account IDs for routing payments."
-              />
-              <form onSubmit={handleSaveSettings}>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="stripeAccountId" className="block text-sm font-medium text-gray-700 mb-1">
-                      Stripe Account ID
-                    </label>
-                    <input
-                      id="stripeAccountId"
-                      type="text"
-                      value={stripeAccountId}
-                      onChange={(e) => setStripeAccountId(e.target.value)}
-                      placeholder="acct_xxx..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Payment Provider Credentials</CardTitle>
+                <CardDescription className="font-mono">
+                  Configure your payment provider account IDs for routing payments.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveSettings}>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="stripeAccountId" className="block text-sm font-medium text-gray-400 mb-1 font-mono">
+                        Stripe Account ID
+                      </label>
+                      <input
+                        id="stripeAccountId"
+                        type="text"
+                        value={stripeAccountId}
+                        onChange={(e) => setStripeAccountId(e.target.value)}
+                        placeholder="acct_xxx..."
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="paypalAccountId" className="block text-sm font-medium text-gray-400 mb-1 font-mono">
+                        PayPal Account ID
+                      </label>
+                      <input
+                        id="paypalAccountId"
+                        type="text"
+                        value={paypalAccountId}
+                        onChange={(e) => setPaypalAccountId(e.target.value)}
+                        placeholder="merchant_xxx..."
+                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="px-6 py-2 bg-primary text-black font-bold rounded-lg hover:bg-[#00dd77] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center font-mono"
+                    >
+                      {saving ? <LoadingSpinner size="sm" className="border-black border-t-transparent mr-2" /> : null}
+                      Save Changes
+                    </button>
                   </div>
-                  <div>
-                    <label htmlFor="paypalAccountId" className="block text-sm font-medium text-gray-700 mb-1">
-                      PayPal Account ID
-                    </label>
-                    <input
-                      id="paypalAccountId"
-                      type="text"
-                      value={paypalAccountId}
-                      onChange={(e) => setPaypalAccountId(e.target.value)}
-                      placeholder="merchant_xxx..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-                  >
-                    {saving ? <LoadingSpinner size="sm" className="border-white border-t-transparent mr-2" /> : null}
-                    Save Changes
-                  </button>
-                </div>
-              </form>
+                </form>
+              </CardContent>
             </Card>
           </div>
         )}
@@ -364,57 +379,69 @@ export default function Dashboard() {
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-900">
-                    {metrics?.total_requests.toLocaleString() || '—'}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Total Requests</p>
-                </div>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary font-mono">
+                      {metrics?.total_requests.toLocaleString() || '—'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Total Requests</p>
+                  </div>
+                </CardContent>
               </Card>
               <Card>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-green-600">
-                    {metrics?.total_success.toLocaleString() || '—'}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Successful</p>
-                </div>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-green-500 font-mono">
+                      {metrics?.total_success.toLocaleString() || '—'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Successful</p>
+                  </div>
+                </CardContent>
               </Card>
               <Card>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-red-600">
-                    {metrics?.total_errors.toLocaleString() || '—'}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Errors</p>
-                </div>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-red-500 font-mono">
+                      {metrics?.total_errors.toLocaleString() || '—'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Errors</p>
+                  </div>
+                </CardContent>
               </Card>
               <Card>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-primary">
-                    {metrics?.success_rate ? `${metrics.success_rate.toFixed(1)}%` : '—'}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">Success Rate</p>
-                </div>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary font-mono">
+                      {metrics?.success_rate ? `${metrics.success_rate.toFixed(1)}%` : '—'}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Success Rate</p>
+                  </div>
+                </CardContent>
               </Card>
             </div>
 
             {/* Usage Chart */}
             <Card>
-              <CardHeader
-                title="Daily Request Volume"
-                description="API requests over the last 14 days"
-              />
-              {metricsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner size="lg" />
-                </div>
-              ) : metrics?.daily_metrics ? (
-                <UsageChart data={metrics.daily_metrics} />
-              ) : (
-                <EmptyState
-                  title="No usage data yet"
-                  description="Start making API requests to see your usage analytics."
-                />
-              )}
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Daily Request Volume</CardTitle>
+                <CardDescription className="font-mono">
+                  API requests over the last 14 days
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {metricsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <LoadingSpinner size="lg" />
+                  </div>
+                ) : metrics?.daily_metrics ? (
+                  <UsageChart data={metrics.daily_metrics} />
+                ) : (
+                  <EmptyState
+                    title="No usage data yet"
+                    description="Start making API requests to see your usage analytics."
+                  />
+                )}
+              </CardContent>
             </Card>
           </div>
         )}
@@ -433,22 +460,18 @@ function ApiKeyRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="p-6 hover:bg-gray-50 transition-colors">
+    <div className="p-6 hover:bg-[#1a1a1a] transition-colors">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-medium text-gray-900">
+            <p className="font-medium text-white font-mono">
               {apiKey.name || 'Unnamed Key'}
             </p>
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-              apiKey.is_active 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-gray-100 text-gray-500'
-            }`}>
+            <Badge variant={apiKey.is_active ? 'default' : 'secondary'} className="font-mono">
               {apiKey.is_active ? 'Active' : 'Revoked'}
-            </span>
+            </Badge>
           </div>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-400 mt-1 font-mono">
             Created: {new Date(apiKey.created_at).toLocaleDateString()}
             {apiKey.last_used_at && (
               <> · Last used: {new Date(apiKey.last_used_at).toLocaleDateString()}</>
@@ -459,14 +482,14 @@ function ApiKeyRow({
           {apiKey.is_active && (
             <button
               onClick={onRevoke}
-              className="px-3 py-1.5 text-sm font-medium text-yellow-700 hover:bg-yellow-50 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-sm font-medium text-yellow-400 hover:bg-[#1a1a1a] border border-yellow-400/30 rounded-lg transition-colors font-mono"
             >
               Revoke
             </button>
           )}
           <button
             onClick={onDelete}
-            className="px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-[#1a1a1a] border border-red-400/30 rounded-lg transition-colors font-mono"
           >
             Delete
           </button>
@@ -485,15 +508,15 @@ function UsageChart({ data }: { data: { date: string; request_count: number; suc
       <div className="flex items-center gap-6 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-primary rounded" />
-          <span className="text-gray-600">Total Requests</span>
+          <span className="text-gray-400 font-mono">Total Requests</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-500 rounded" />
-          <span className="text-gray-600">Successful</span>
+          <span className="text-gray-400 font-mono">Successful</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-red-500 rounded" />
-          <span className="text-gray-600">Errors</span>
+          <span className="text-gray-400 font-mono">Errors</span>
         </div>
       </div>
 
@@ -503,7 +526,7 @@ function UsageChart({ data }: { data: { date: string; request_count: number; suc
           <div key={index} className="flex-1 flex flex-col items-center gap-1">
             <div className="w-full flex flex-col justify-end h-40 relative group">
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#1a1a1a] border border-primary text-primary text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 font-mono">
                 {day.request_count} requests
               </div>
               
@@ -524,7 +547,7 @@ function UsageChart({ data }: { data: { date: string; request_count: number; suc
                 />
               </div>
             </div>
-            <span className="text-xs text-gray-500 -rotate-45 origin-top-left translate-y-2">
+            <span className="text-xs text-gray-500 -rotate-45 origin-top-left translate-y-2 font-mono">
               {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
           </div>

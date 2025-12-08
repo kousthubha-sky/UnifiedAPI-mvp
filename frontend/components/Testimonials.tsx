@@ -10,7 +10,7 @@ interface Testimonial {
 
 const testimonials: Testimonial[] = [
   {
-    quote: "PaymentHub simplified our entire payment infrastructure. We went from managing three separate integrations to just one API. Setup took less than a day.",
+    quote: "OneRouter simplified our entire payment infrastructure. We went from managing three separate integrations to just one API. Setup took less than a day.",
     author: "Sarah Chen",
     role: "CTO",
     company: "TechFlow",
@@ -31,7 +31,7 @@ const testimonials: Testimonial[] = [
     avatar: "ER",
   },
   {
-    quote: "We process over 100,000 transactions daily through PaymentHub. The reliability and analytics have been game-changers for our business.",
+    quote: "We process over 100,000 transactions daily through OneRouter. The reliability and analytics have been game-changers for our business.",
     author: "David Kim",
     role: "VP of Engineering",
     company: "MegaCommerce",
@@ -45,7 +45,7 @@ const testimonials: Testimonial[] = [
     avatar: "LT",
   },
   {
-    quote: "Security and compliance were our top concerns. PaymentHub handles all PCI requirements, letting us focus on building features.",
+    quote: "Security and compliance were our top concerns. OneRouter handles all PCI requirements, letting us focus on building features.",
     author: "James Wilson",
     role: "Security Lead",
     company: "SecureFinance",
@@ -55,17 +55,17 @@ const testimonials: Testimonial[] = [
 
 export default function Testimonials() {
   return (
-    <section id="testimonials" className="w-full py-20 md:py-28 bg-gray-50 px-4">
+    <section id="testimonials" className="w-full py-20 md:py-28 bg-black px-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <span className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-full text-sm font-medium text-primary">
+          <span className="px-4 py-2 bg-[#1a1a1a] border border-primary rounded-full text-sm font-medium text-primary font-mono">
             Testimonials
           </span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mt-6 mb-4">
-            Loved by Developers & Businesses
+          <h2 className="text-3xl md:text-4xl font-bold text-white mt-6 mb-4 font-mono">
+            Loved by Developers & <span className="text-primary">Businesses</span>
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            See what our customers have to say about their experience with PaymentHub.
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto font-mono">
+            See what our customers have to say about their experience with OneRouter.
           </p>
         </div>
 
@@ -73,7 +73,7 @@ export default function Testimonials() {
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
+              className="card card-hover p-6"
             >
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
@@ -88,17 +88,17 @@ export default function Testimonials() {
                 ))}
               </div>
 
-              <blockquote className="text-gray-600 mb-6 leading-relaxed">
+              <blockquote className="text-gray-300 mb-6 leading-relaxed font-mono text-sm">
                 &ldquo;{testimonial.quote}&rdquo;
               </blockquote>
 
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-sm">
+                <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-black font-semibold text-sm font-mono">
                   {testimonial.avatar}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">{testimonial.author}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-semibold text-white font-mono">{testimonial.author}</p>
+                  <p className="text-sm text-gray-400 font-mono">
                     {testimonial.role}, {testimonial.company}
                   </p>
                 </div>

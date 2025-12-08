@@ -21,7 +21,7 @@ from app.errors import (
     NotFoundError,
     ValidationError,
 )
-from app.logging import get_logger, get_trace_id
+from app.app_logging import get_logger, get_trace_id
 from app.models import (
     ApiKeyAction,
     ApiKeyResponse,
@@ -187,7 +187,6 @@ async def create_api_key(
 
         insert_data = {
             "customer_id": customer_id,
-            "key": api_key,
             "key_hash": key_hash,
             "name": body.name or "API Key",
             "is_active": True,
@@ -404,7 +403,6 @@ async def update_api_key(
             new_key_hash = _hash_api_key(new_api_key)
 
             update_data = {
-                "key": new_api_key,
                 "key_hash": new_key_hash,
                 "is_active": True,
                 "updated_at": now,

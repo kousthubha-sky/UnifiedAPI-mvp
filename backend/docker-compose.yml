@@ -1,4 +1,4 @@
-# Docker Compose for PaymentHub Backend
+# Docker Compose for OneRouter Backend
 # Optional snippet for local development
 
 services:
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 3
 
-  # PaymentHub Backend API
+  # OneRouter Backend API
   backend:
     build:
       context: .
