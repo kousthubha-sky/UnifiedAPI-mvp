@@ -98,6 +98,80 @@ SDK Quality Assurance:
 - Documentation auto-generation
 - Cross-platform compatibility (Linux/macOS/Windows)
 - Performance benchmarking
+
+## Credit-Based Billing System
+
+### Overview
+Implement a credit-based payment system similar to OpenRouter, OpenAI, and other API services, replacing traditional monthly subscriptions with usage-based credits.
+
+### Core Features
+
+#### Credit Management
+- **Credit Balance**: Users have a credit balance in USD or tokens
+- **Credit Tracking**: Real-time balance updates after each API call
+- **Credit History**: Detailed transaction log showing credit usage
+- **Low Credit Alerts**: Email/SMS notifications when balance drops below threshold
+
+#### Pricing Model
+- **Per-Request Pricing**: Different credit costs for different API endpoints
+  - Simple endpoints: 0.001 credits
+  - Complex operations: 0.01-0.1 credits
+  - File uploads/downloads: Variable based on size
+- **Volume Discounts**: Reduced rates for high-volume users
+- **Free Tier**: 100 credits for new users to try the service
+
+#### Credit Purchase
+- **Multiple Options**: $5, $10, $25, $50, $100 credit packs
+- **Payment Methods**: Stripe integration for credit card purchases
+- **Instant Credits**: Credits added immediately after successful payment
+- **Purchase History**: Track all credit purchases
+
+#### API Integration
+- **Pre-Flight Checks**: Verify sufficient credits before processing requests
+- **Credit Deduction**: Atomic credit deduction with request processing
+- **Usage Analytics**: Per-user, per-endpoint usage statistics
+- **Rate Limiting**: Additional rate limits based on credit balance
+
+#### User Experience
+- **Dashboard Integration**: Credit balance prominently displayed
+- **Usage Dashboard**: Charts showing credit consumption over time
+- **Billing History**: Complete transaction history
+- **Auto-Recharge**: Optional automatic credit purchases when balance is low
+
+### Technical Implementation
+
+#### Database Schema
+- `user_credits` table: user_id, balance, created_at, updated_at
+- `credit_transactions` table: user_id, amount, type (purchase/usage), description, timestamp
+- `credit_packages` table: amount, price, description
+
+#### API Changes
+- Credit balance check middleware
+- Credit deduction on successful requests
+- Credit purchase endpoints
+- Usage reporting endpoints
+
+#### Security
+- Credit balance validation before request processing
+- Fraud prevention for credit purchases
+- Audit logs for all credit transactions
+
+### Business Model
+- **Revenue**: Direct correlation between usage and revenue
+- **Scalability**: Pay-as-you-grow model
+- **Predictability**: Users control their spending
+- **Accessibility**: Lower barrier to entry than subscriptions
+
+### Migration Path
+- **Existing Users**: Convert monthly subscriptions to credit equivalents
+- **New Users**: Start with free credits, purchase as needed
+- **Grace Period**: Allow existing plans to continue during transition
+
+### Success Metrics
+- **User Acquisition**: Increased signups due to lower commitment
+- **Revenue Growth**: Higher revenue from power users
+- **User Retention**: Better retention with flexible pricing
+- **Credit Utilization**: Average credits used per user
 Key Workflow Questions to Address
 1. Credential Storage: Where and how are service provider credentials stored? (Environment variables, database, encrypted config?)
 2. Service Registration: How does a developer "register" a new service provider (like adding a new AI model to OpenRouter)?
