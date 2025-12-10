@@ -380,31 +380,47 @@ def create_app() -> FastAPI:
             ip=client_ip,
         )
 
-        # Authenticate request (sets request.state.auth)
-        try:
-            await authenticate_request(
-                request=request,
-                settings=settings,
-                x_api_key=request.headers.get("X-API-Key"),
-                authorization=request.headers.get("Authorization"),
-            )
-        except APIError as auth_error:
-            # Return auth error response
-            response = create_error_response(
-                code=auth_error.code,
-                message=auth_error.message,
-                status_code=auth_error.status_code,
-                details=auth_error.details,
-                trace_id=get_trace_id(),
-            )
-            response.headers["X-Trace-Id"] = get_trace_id()
-            # Add CORS headers to error responses
-            response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            return response
+        # Check if this is a test request from SDK health checks
+        # Only allow test bypass in non-production with valid token and whitelisted path
+        is_test_request = False
+        if settings.environment != "production" and settings.test_bypass_token:
+            # Whitelist of endpoints that can bypass auth/rate limiting in non-production
+            whitelisted_paths = ["/health", "/docs", "/openapi.json"]
+            if request.url.path in whitelisted_paths:
+                # Check for valid test bypass token
+                test_token = request.headers.get("X-Test-Token")
+                if test_token and test_token == settings.test_bypass_token:
+                    is_test_request = True
 
-        # Apply rate limiting (after auth, so we have customer context)
-        response = await rate_limit_middleware(request, call_next)
+        if not is_test_request:
+            # Authenticate request (sets request.state.auth)
+            try:
+                await authenticate_request(
+                    request=request,
+                    settings=settings,
+                    x_api_key=request.headers.get("X-API-Key"),
+                    authorization=request.headers.get("Authorization"),
+                )
+            except APIError as auth_error:
+                # Return auth error response
+                response = create_error_response(
+                    code=auth_error.code,
+                    message=auth_error.message,
+                    status_code=auth_error.status_code,
+                    details=auth_error.details,
+                    trace_id=get_trace_id(),
+                )
+                response.headers["X-Trace-Id"] = get_trace_id()
+                # Add CORS headers to error responses
+                response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                return response
+
+            # Apply rate limiting (after auth, so we have customer context)
+            response = await rate_limit_middleware(request, call_next)
+        else:
+            # Skip auth and rate limiting for test requests
+            response = await call_next(request)
 
         # Log response with latency
         latency_ms = get_request_latency_ms()
@@ -441,12 +457,22 @@ def create_app() -> FastAPI:
             }
         },
     )
-    async def health_check() -> dict[str, str]:
+    async def health_check(request: Request) -> dict[str, str]:
         """Health check endpoint.
 
         Returns:
             Server health status with timestamp.
         """
+        # Check if this is a test request from SDK
+        is_test_request = request.headers.get("X-Test-Auth") == "true" or request.headers.get("X-Test-Service") == "true"
+
+        if is_test_request:
+            # For SDK health checks, return healthy status
+            return {
+                "status": "ok",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+
         return {
             "status": "ok",
             "timestamp": datetime.now(UTC).isoformat(),

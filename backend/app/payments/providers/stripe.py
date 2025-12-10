@@ -14,6 +14,7 @@ from stripe._error import InvalidRequestError, StripeError
 
 from app.config import Settings
 from app.app_logging import get_logger
+from app.payments.credential_service import PaymentCredentialService
 from app.payments.errors import (
     PaymentFailedError,
     PaymentNotFoundError,
@@ -37,21 +38,50 @@ class StripeAdapter(PaymentProviderAdapter):
     Handles payment creation, refunds, and status checks via Stripe API.
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, credential_service: PaymentCredentialService, environment: str) -> None:
         """Initialize the Stripe adapter.
 
         Args:
-            settings: Application settings containing Stripe API key.
+            credential_service: Service for accessing encrypted credentials
+            environment: Environment (local/staging/production)
 
         Raises:
             ValueError: If Stripe API key is not configured.
         """
-        if not settings.stripe_api_key:
-            raise ValueError("STRIPE_API_KEY is not configured")
-
-        self.api_key = settings.stripe_api_key
-        stripe.api_key = self.api_key
+        self.credential_service = credential_service
+        self.environment = environment
         stripe.api_version = "2024-11-20.acacia"
+
+    async def _get_api_key(self) -> str:
+        """Get the Stripe API key from the credential service.
+
+        Returns:
+            Stripe API key
+
+        Raises:
+            ValueError: If API key is not configured
+        """
+        api_key = await self.credential_service.get_credential_value(
+            self.environment, 'stripe', 'api_key'
+        )
+        if not api_key:
+            raise ValueError(f"Stripe API key not configured for environment: {self.environment}")
+        return api_key
+
+    async def _get_request_options(self) -> dict[str, str]:
+        """Get Stripe request options with API key.
+        
+        Returns a per-request options dict with the API key, ensuring thread safety
+        by not mutating module-level state.
+        
+        Returns:
+            Dict with 'api_key' and other request options
+            
+        Raises:
+            ValueError: If API key is not configured
+        """
+        api_key = await self._get_api_key()
+        return {"api_key": api_key}
 
     @property
     def provider_name(self) -> str:
@@ -130,6 +160,9 @@ class StripeAdapter(PaymentProviderAdapter):
         normalized_currency = self.normalize_currency(currency)
 
         try:
+            # Get per-request options with API key (thread-safe)
+            request_options = await self._get_request_options()
+
             logger.info(
                 "Creating Stripe PaymentIntent",
                 amount=amount,
@@ -165,7 +198,6 @@ class StripeAdapter(PaymentProviderAdapter):
                 intent_params["description"] = description
 
             # Add idempotency key if provided
-            request_options: dict[str, Any] = {}
             if idempotency_key:
                 request_options["idempotency_key"] = idempotency_key
 
@@ -245,6 +277,9 @@ class StripeAdapter(PaymentProviderAdapter):
             ProviderError: If there's a Stripe API error.
         """
         try:
+            # Get per-request options with API key (thread-safe)
+            request_options = await self._get_request_options()
+
             logger.info(
                 "Creating Stripe refund",
                 payment_intent=provider_transaction_id,
@@ -269,7 +304,6 @@ class StripeAdapter(PaymentProviderAdapter):
                 refund_params["metadata"] = {"original_reason": reason}
 
             # Add idempotency key if provided
-            request_options: dict[str, Any] = {}
             if idempotency_key:
                 request_options["idempotency_key"] = idempotency_key
 
@@ -342,19 +376,28 @@ class StripeAdapter(PaymentProviderAdapter):
             ProviderError: If there's a Stripe API error.
         """
         try:
+            # Get per-request options with API key (thread-safe)
+            request_options = await self._get_request_options()
+
             logger.info(
                 "Fetching Stripe PaymentIntent status",
                 payment_intent=provider_transaction_id,
             )
 
-            payment_intent = stripe.PaymentIntent.retrieve(provider_transaction_id)
+            payment_intent = stripe.PaymentIntent.retrieve(
+                provider_transaction_id,
+                **request_options,
+            )
 
             # Check for refunds
             status = self._map_stripe_status(payment_intent.status)
 
             # If there are charges, check if any are refunded
             if payment_intent.latest_charge:
-                charge = stripe.Charge.retrieve(payment_intent.latest_charge)
+                charge = stripe.Charge.retrieve(
+                    payment_intent.latest_charge,
+                    **request_options,
+                )
                 if charge.refunded:
                     status = PaymentStatus.REFUNDED
 

@@ -2,6 +2,9 @@
  * OneRouter SDK Types
  */
 
+// Environment Types
+export type Environment = 'local' | 'staging' | 'production';
+
 // Configuration Types
 export interface ClientConfig {
   /** API key for authentication (sk_...) */
@@ -16,6 +19,20 @@ export interface ClientConfig {
   enableSigning?: boolean;
   /** HMAC secret for request signing (defaults to apiKey if not provided) */
   signingSecret?: string;
+  /** Environment override (auto-detected if not provided) */
+  environment?: Environment;
+  /** Request interceptors */
+  requestInterceptors?: RequestInterceptor[];
+  /** Response interceptors */
+  responseInterceptors?: ResponseInterceptor<unknown>[];
+  /** Error interceptors */
+  errorInterceptors?: ErrorInterceptor[];
+  /** Response cache TTL in milliseconds (default: 300000 = 5 minutes) */
+  cacheTtlMs?: number;
+  /** Maximum number of entries in response cache (default: 1000) */
+  cacheMaxSize?: number;
+  /** Interval for periodic cache cleanup in milliseconds (default: 60000 = 1 minute) */
+  cacheCleanupIntervalMs?: number;
 }
 
 export interface RequestOptions {
@@ -27,6 +44,8 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   /** Skip retries for this request */
   skipRetry?: boolean;
+  /** Skip response caching for this request */
+  skipCache?: boolean;
 }
 
 // Payment Provider Types
@@ -348,6 +367,78 @@ export interface HealthResponse {
   status: string;
   /** Current timestamp */
   timestamp: string;
+}
+
+// Metrics Types
+export interface RequestMetrics {
+  /** HTTP method */
+  method: string;
+  /** Request path */
+  path: string;
+  /** Request duration in milliseconds */
+  duration: number;
+  /** HTTP status code */
+  statusCode: number;
+  /** Whether the request was successful */
+  success: boolean;
+  /** Timestamp of the request */
+  timestamp: number;
+  /** Environment tag */
+  environment: Environment;
+  /** Request trace ID */
+  traceId?: string;
+}
+
+export interface HealthCheckResult {
+  /** Overall health status */
+  status: 'healthy' | 'unhealthy';
+  /** Timestamp of the check */
+  timestamp: string;
+  /** Latency in milliseconds */
+  latency: number;
+  /** Individual service checks */
+  services: {
+    /** API connectivity check */
+    api: { status: 'ok' | 'error'; latency: number; error?: string };
+    /** Authentication check */
+    auth: { status: 'ok' | 'error'; latency: number; error?: string };
+    /** Payments service check */
+    payments?: { status: 'ok' | 'error'; latency: number; error?: string };
+    /** Customers service check */
+    customers?: { status: 'ok' | 'error'; latency: number; error?: string };
+  };
+}
+
+// Interceptor Types
+export interface RequestInterceptor {
+  (request: {
+    method: string;
+    path: string;
+    body?: unknown;
+    options?: RequestOptions;
+  }): {
+    method: string;
+    path: string;
+    body?: unknown;
+    options?: RequestOptions;
+  } | Promise<{
+    method: string;
+    path: string;
+    body?: unknown;
+    options?: RequestOptions;
+  }>;
+}
+
+export interface ResponseInterceptor<T = unknown> {
+  (response: {
+    data: T;
+    status: number;
+    headers: Record<string, string>;
+  }): T | Promise<T>;
+}
+
+export interface ErrorInterceptor {
+  (error: Error): Error | Promise<Error>;
 }
 
 // Transport Interface (for testing)

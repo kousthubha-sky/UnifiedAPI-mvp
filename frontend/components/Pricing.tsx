@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { SignUpButton } from '@clerk/nextjs';
 import clsx from 'clsx';
-import { useAuth } from '@/lib/auth-context';
 
 interface PricingTier {
   name: string;
@@ -70,19 +68,8 @@ const tiers: PricingTier[] = [
 ];
 
 export default function Pricing() {
-  const { user } = useAuth();
 
-  const getCtaLink = (tier: PricingTier) => {
-    if (user) {
-      return '/dashboard';
-    }
-    if (tier.name === 'Scale') {
-      return '/signup?plan=scale';
-    } else if (tier.name === 'Growth') {
-      return '/signup?plan=growth';
-    }
-    return '/signup';
-  };
+
 
   return (
     <section id="pricing" className="w-full py-20 md:py-28 bg-[#050505] px-4">

@@ -9,12 +9,14 @@ import {
   ClientConfig,
   Transport,
   RequestOptions,
+  HealthCheckResult,
 } from './types.js';
 import { HttpTransport, MockTransport } from './transport.js';
 import { PaymentsResource } from './resources/payments.js';
 import { CustomersResource } from './resources/customers.js';
 import { ApiKeysResource } from './resources/api_keys.js';
 import { ValidationError } from './errors.js';
+import { mergeConfig, validateApiKey } from './config.js';
 
 /**
  * Default configuration values
@@ -102,7 +104,7 @@ export class UnifiedAPIClient {
    * Create a new UnifiedAPIClient
    *
    * @param config - Client configuration
-   * @throws {ValidationError} If required configuration is missing
+   * @throws {ValidationError} If required configuration is missing or invalid
    */
   constructor(config: ClientConfig);
   /**
@@ -113,25 +115,24 @@ export class UnifiedAPIClient {
    */
   constructor(config: ClientConfig, transport: Transport);
   constructor(config: ClientConfig, transport?: Transport) {
-    // Validate required config
-    if (!config.apiKey) {
-      throw new ValidationError('API key is required');
-    }
+     // Validate API key
+     try {
+       validateApiKey(config.apiKey);
+     } catch (error) {
+       throw new ValidationError(error instanceof Error ? error.message : 'Invalid API key');
+     }
 
-    // Merge with defaults
-    this.config = {
-      ...DEFAULT_CONFIG,
-      ...config,
-    };
+     // Merge configuration with environment-aware defaults
+     this.config = mergeConfig(config);
 
-    // Use provided transport or create HTTP transport
-    this.transport = transport || new HttpTransport(this.config);
+     // Use provided transport or create HTTP transport
+     this.transport = transport || new HttpTransport(this.config);
 
-    // Initialize resources
-    this.payments = new PaymentsResource(this.transport);
-    this.customers = new CustomersResource(this.transport);
-    this.apiKeys = new ApiKeysResource(this.transport);
-  }
+     // Initialize resources
+     this.payments = new PaymentsResource(this.transport);
+     this.customers = new CustomersResource(this.transport);
+     this.apiKeys = new ApiKeysResource(this.transport);
+   }
 
   /**
    * Get the configured base URL
@@ -204,11 +205,11 @@ export class UnifiedAPIClient {
   static forDevelopment(apiKey: string): UnifiedAPIClient {
     return new UnifiedAPIClient({
       apiKey,
-      baseUrl: 'http://localhost:8000',
-      timeout: 30000,
-      maxRetries: 3,
+      environment: 'local',
     });
   }
+
+
 
   /**
    * Check server health
@@ -232,27 +233,153 @@ export class UnifiedAPIClient {
   }
 
   /**
+   * Perform comprehensive health check with detailed service validation
+   *
+   * @param options - Request options
+   * @returns Detailed health check results
+   *
+   * @example
+   * ```typescript
+   * const healthCheck = await client.healthCheck();
+   * console.log(`Overall status: ${healthCheck.status}`);
+   * console.log(`API latency: ${healthCheck.services.api.latency}ms`);
+   * ```
+   */
+  async healthCheck(options?: RequestOptions): Promise<HealthCheckResult> {
+    const startTime = Date.now();
+    const results: HealthCheckResult = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      latency: 0,
+      services: {
+        api: { status: 'ok', latency: 0 },
+        auth: { status: 'ok', latency: 0 },
+      },
+    };
+
+    try {
+      // Check basic API connectivity
+      const apiStart = Date.now();
+      await this.transport.request(
+        'GET',
+        '/health',
+        undefined,
+        { ...options, skipRetry: true, timeout: 5000 }
+      );
+      results.services.api.latency = Date.now() - apiStart;
+
+      // Check authentication by making an authenticated request
+      try {
+        const authStart = Date.now();
+        await this.transport.request(
+          'GET',
+          '/api/v1/customers',
+          undefined,
+          { ...options, skipRetry: true, timeout: 5000, headers: { 'X-Test-Auth': 'true' } }
+        );
+        results.services.auth.latency = Date.now() - authStart;
+      } catch (error) {
+        results.services.auth = {
+          status: 'error',
+          latency: 0,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+        results.status = 'unhealthy';
+      }
+
+      // Optional: Check payments service
+      try {
+        const paymentsStart = Date.now();
+        await this.transport.request(
+          'GET',
+          '/api/v1/payments',
+          undefined,
+          { ...options, skipRetry: true, timeout: 5000, headers: { 'X-Test-Service': 'true' } }
+        );
+        results.services.payments = {
+          status: 'ok',
+          latency: Date.now() - paymentsStart,
+        };
+      } catch (error) {
+        results.services.payments = {
+          status: 'error',
+          latency: 0,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+        results.status = 'unhealthy';
+      }
+
+      // Optional: Check customers service
+      try {
+        const customersStart = Date.now();
+        await this.transport.request(
+          'GET',
+          '/api/v1/customers',
+          undefined,
+          { ...options, skipRetry: true, timeout: 5000, headers: { 'X-Test-Service': 'true' } }
+        );
+        results.services.customers = {
+          status: 'ok',
+          latency: Date.now() - customersStart,
+        };
+      } catch (error) {
+        results.services.customers = {
+          status: 'error',
+          latency: 0,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+        results.status = 'unhealthy';
+      }
+
+    } catch (error) {
+      results.status = 'unhealthy';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Mark all services as failed
+      results.services.api = { status: 'error', latency: 0, error: errorMessage };
+      results.services.auth = { status: 'error', latency: 0, error: errorMessage };
+    }
+
+    results.latency = Date.now() - startTime;
+    return results;
+  }
+
+  /**
+   * Get request metrics
+   *
+   * @returns Metrics collector instance
+   *
+   * @example
+   * ```typescript
+   * const metrics = client.getMetrics();
+   * const summary = metrics.getSummary();
+   * console.log(`Total requests: ${summary.total}, Success rate: ${summary.successful / summary.total * 100}%`);
+   * ```
+   */
+  getMetrics() {
+    if (this.transport instanceof HttpTransport) {
+      return this.transport.getMetricsCollector();
+    }
+    throw new Error('Metrics are only available for HTTP transport');
+  }
+
+  /**
    * Create a client configured for production
    *
    * @param apiKey - API key for authentication
-   * @param baseUrl - Production API URL
+   * @param baseUrl - Production API URL (optional, uses environment default)
    * @returns UnifiedAPIClient configured for production
    *
    * @example
    * ```typescript
-   * const client = UnifiedAPIClient.forProduction(
-   *   'sk_live_xxx',
-   *   'https://api.OneRouter.com'
-   * );
+   * const client = UnifiedAPIClient.forProduction('sk_live_xxx');
    * ```
    */
-  static forProduction(apiKey: string, baseUrl: string): UnifiedAPIClient {
+  static forProduction(apiKey: string, baseUrl?: string): UnifiedAPIClient {
     return new UnifiedAPIClient({
       apiKey,
       baseUrl,
-      timeout: 30000,
-      maxRetries: 3,
-      enableSigning: true,
+      environment: 'production',
     });
   }
 }

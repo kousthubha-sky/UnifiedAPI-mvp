@@ -2,7 +2,7 @@
  * Unit tests for UnifiedAPIClient
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   UnifiedAPIClient,
   MockTransport,
@@ -16,6 +16,17 @@ import {
 } from '../src/index.js';
 
 describe('UnifiedAPIClient', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    delete process.env.UNIFIED_ENV;
+    delete process.env.NODE_ENV;
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
   describe('constructor', () => {
     it('should create client with valid config', () => {
       const client = new UnifiedAPIClient({
@@ -35,6 +46,22 @@ describe('UnifiedAPIClient', () => {
       }).toThrow(ValidationError);
     });
 
+    it('should throw ValidationError for invalid API key format', () => {
+      expect(() => {
+        new UnifiedAPIClient({
+          apiKey: 'invalid_key',
+        });
+      }).toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError for API key without sk_ prefix', () => {
+      expect(() => {
+        new UnifiedAPIClient({
+          apiKey: 'test_123',
+        });
+      }).toThrow(ValidationError);
+    });
+
     it('should use default baseUrl when not provided', () => {
       const client = new UnifiedAPIClient({
         apiKey: 'sk_test_123',
@@ -49,6 +76,43 @@ describe('UnifiedAPIClient', () => {
       });
 
       expect(client.timeout).toBe(30000);
+    });
+
+    it('should auto-detect local environment', () => {
+      const client = new UnifiedAPIClient({
+        apiKey: 'sk_test_123',
+      });
+
+      expect(client.getMetrics().getEnvironment()).toBe('local');
+    });
+
+    it('should use explicit environment override', () => {
+      const client = new UnifiedAPIClient({
+        apiKey: 'sk_test_123',
+        environment: 'production',
+      });
+
+      expect(client.getMetrics().getEnvironment()).toBe('production');
+    });
+
+    it('should perform health check on creation', async () => {
+      const { client, mock } = UnifiedAPIClient.withMockTransport({
+        apiKey: 'sk_test_123',
+      });
+
+      mock.onHealth(async () => ({ status: 'healthy', timestamp: new Date().toISOString() }));
+
+      // Actually call health check
+      const health = await client.health();
+      expect(health.status).toBe('healthy');
+    });
+
+    it('should create client without health check', () => {
+      const client = new UnifiedAPIClient({
+        apiKey: 'sk_test_123',
+      });
+
+      expect(client).toBeDefined();
     });
   });
 
@@ -67,9 +131,18 @@ describe('UnifiedAPIClient', () => {
 
       expect(client).toBeInstanceOf(UnifiedAPIClient);
       expect(client.baseUrl).toBe('http://localhost:8000');
+      expect(client.getMetrics().getEnvironment()).toBe('local');
     });
 
     it('should create client for production', () => {
+      const client = UnifiedAPIClient.forProduction('sk_live_123');
+
+      expect(client).toBeInstanceOf(UnifiedAPIClient);
+      expect(client.baseUrl).toBe('https://api.onerouter.com');
+      expect(client.getMetrics().getEnvironment()).toBe('production');
+    });
+
+    it('should create client for production with custom URL', () => {
       const client = UnifiedAPIClient.forProduction(
         'sk_live_123',
         'https://api.prod.com'

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, type ApiKey } from '@/lib/auth-context';
 import { useMetrics } from '@/lib/use-metrics';
+import { getHealthCheck, type HealthCheckResult } from '@/lib/api';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Alert from '@/components/ui/Alert';
 import EmptyState from '@/components/ui/EmptyState';
@@ -17,6 +18,7 @@ const tabs: Tab[] = [
   { id: 'api-keys', label: 'API Keys', icon: '🔑' },
   { id: 'settings', label: 'Settings', icon: '⚙️' },
   { id: 'usage', label: 'Usage Analytics', icon: '📊' },
+  { id: 'health', label: 'System Health', icon: '💚' },
 ];
 
 export default function Dashboard() {
@@ -36,6 +38,8 @@ export default function Dashboard() {
   const { metrics, loading: metricsLoading } = useMetrics(session?.access_token ?? null);
 
   const [activeTab, setActiveTab] = useState('api-keys');
+  const [healthCheck, setHealthCheck] = useState<HealthCheckResult | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -132,6 +136,36 @@ export default function Dashboard() {
     await signOut();
     router.push('/');
   };
+
+  const performHealthCheck = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const result = await getHealthCheck();
+      setHealthCheck(result);
+    } catch (error) {
+      console.error('Health check failed:', error);
+      setHealthCheck({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        latency: 0,
+        services: {
+          api: { status: 'error', latency: 0 },
+          auth: { status: 'error', latency: 0 },
+          payments: { status: 'error', latency: 0 },
+          customers: { status: 'error', latency: 0 },
+        },
+        error: error instanceof Error ? error.message : 'Failed to perform health check',
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'health' && !healthCheck && !healthLoading) {
+      performHealthCheck();
+    }
+  }, [activeTab, healthCheck, healthLoading, performHealthCheck]);
 
   if (authLoading) {
     return (
@@ -437,6 +471,141 @@ export default function Dashboard() {
                     description="Start making API requests to see your usage analytics."
                   />
                 )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'health' && (
+          <div className="space-y-6">
+            {/* Health Check Button */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">System Health Check</CardTitle>
+                <CardDescription className="font-mono">
+                  Comprehensive health check of the SDK and backend services.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <button
+                  onClick={performHealthCheck}
+                  disabled={healthLoading}
+                  className="px-6 py-2 bg-primary text-black font-bold rounded-lg hover:bg-[#00dd77] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center font-mono"
+                >
+                  {healthLoading ? <LoadingSpinner size="sm" className="border-black border-t-transparent mr-2" /> : null}
+                  Run Health Check
+                </button>
+              </CardContent>
+            </Card>
+
+            {/* Health Status */}
+            {healthCheck && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Overall Status */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-white font-mono">Overall Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={healthCheck.status === 'healthy' ? 'default' : 'destructive'} className="font-mono">
+                        {healthCheck.status === 'healthy' ? '✅ Healthy' : '❌ Unhealthy'}
+                      </Badge>
+                      <span className="text-sm text-gray-400 font-mono">
+                        {healthCheck.latency ? `${healthCheck.latency}ms` : 'N/A'}
+                      </span>
+                    </div>
+                    {healthCheck.error && (
+                      <p className="text-red-400 text-sm mt-2 font-mono">{healthCheck.error}</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Service Status */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-white font-mono">Service Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {healthCheck.services && (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400 font-mono">API Connectivity</span>
+                            <Badge variant={healthCheck.services.api?.status === 'ok' ? 'default' : 'destructive'} className="font-mono">
+                              {healthCheck.services.api?.status === 'ok' ? '✅ OK' : '❌ Error'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400 font-mono">Authentication</span>
+                            <Badge variant={healthCheck.services.auth?.status === 'ok' ? 'default' : 'destructive'} className="font-mono">
+                              {healthCheck.services.auth?.status === 'ok' ? '✅ OK' : '❌ Error'}
+                            </Badge>
+                          </div>
+                          {healthCheck.services.payments && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-400 font-mono">Payments Service</span>
+                              <Badge variant={healthCheck.services.payments.status === 'ok' ? 'default' : 'destructive'} className="font-mono">
+                                {healthCheck.services.payments.status === 'ok' ? '✅ OK' : '❌ Error'}
+                              </Badge>
+                            </div>
+                          )}
+                          {healthCheck.services.customers && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-400 font-mono">Customers Service</span>
+                              <Badge variant={healthCheck.services.customers.status === 'ok' ? 'default' : 'destructive'} className="font-mono">
+                                {healthCheck.services.customers.status === 'ok' ? '✅ OK' : '❌ Error'}
+                              </Badge>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* SDK Environment Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">SDK Configuration</CardTitle>
+                <CardDescription className="font-mono">
+                  Current SDK environment and configuration details.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Environment</label>
+                    <Badge className="font-mono">
+                      {typeof window !== 'undefined' && window.location.hostname.includes('.lc') ? 'local' :
+                       typeof window !== 'undefined' && window.location.hostname.includes('.st') ? 'staging' :
+                       typeof window !== 'undefined' && window.location.hostname.includes('.pr') ? 'production' : 'local'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">API Base URL</label>
+                    <code className="text-sm text-gray-300 bg-[#1a1a1a] px-2 py-1 rounded font-mono">
+                      {process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}
+                    </code>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">SDK Version</label>
+                    <code className="text-sm text-gray-300 bg-[#1a1a1a] px-2 py-1 rounded font-mono">
+                      Latest
+                    </code>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Features</label>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline" className="text-xs font-mono">Interceptors</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">Metrics</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">Caching</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">Compression</Badge>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

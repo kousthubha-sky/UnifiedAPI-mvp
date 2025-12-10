@@ -11,7 +11,6 @@ import {
   clearStoredApiKey,
   clearStoredCustomerId,
   clearAllAuthData,
-  getBootstrapApiKey,
 } from './api';
 
 export interface Customer {
@@ -85,26 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return headers;
   }, []);
 
-  // Helper to get API key header - uses stored API key or bootstrap key as fallback
-  const getApiKeyHeaders = useCallback((useBootstrap: boolean = false): HeadersInit => {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
 
-    if (useBootstrap) {
-      const bootstrapKey = getBootstrapApiKey();
-      if (bootstrapKey) {
-        headers['x-api-key'] = bootstrapKey;
-      }
-    } else {
-      const storedKey = getStoredApiKey();
-      if (storedKey) {
-        headers['x-api-key'] = storedKey;
-      }
-    }
-
-    return headers;
-  }, []);
 
   const refreshCustomer = useCallback(async () => {
     const customerId = getStoredCustomerId();
@@ -200,11 +180,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!storedCustomerId) {
             const email = user.emailAddresses?.[0]?.emailAddress || '';
             const userId = user?.id || '';
-            const { customerId, error } = await createBackendCustomer(email, userId);
+            const { customerId, error: _error } = await createBackendCustomer(email, userId);
             if (customerId) {
               setStoredCustomerId(customerId);
               // Generate initial API key
-              const { key } = await generateInitialApiKey(customerId);
+              const { key } = await generateInitialApiKey();
               if (key) {
                 setStoredApiKey(key);
                 apiClient.setApiKey(key);
@@ -219,8 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await refreshApiKeys();
           }
         }
-      } catch (err) {
-        console.error('Failed to initialize auth:', err);
+      } catch (_err) {
+        console.error('Failed to initialize auth:', _err);
       } finally {
         setLoading(false);
       }
@@ -264,7 +244,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Generate initial API key using Clerk auth
-  const generateInitialApiKey = async (customerId: string): Promise<{ key: string | null; error: string | null }> => {
+  // The backend derives customer_id from the authenticated request context
+  const generateInitialApiKey = async (): Promise<{ key: string | null; error: string | null }> => {
     try {
       const headers = await getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/api/v1/api-keys`, {
@@ -300,9 +281,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
-      if (result.status === 'complete') {
+       if (result.status === 'complete') {
         // User is signed in
         // Ensure we have customer record
+        if (!user?.id) {
+          return { error: 'User not found after sign up' };
+        }
         const { customerId, error: customerError } = await createBackendCustomer(email, user.id);
         if (customerError && !customerId) {
           return { error: customerError };
@@ -314,7 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Generate API key if not exists
           const storedKey = getStoredApiKey();
           if (!storedKey) {
-            const { key } = await generateInitialApiKey(customerId);
+            const { key } = await generateInitialApiKey();
             if (key) {
               setStoredApiKey(key);
               apiClient.setApiKey(key);
@@ -349,10 +333,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
-      if (result.status === 'complete') {
+       if (result.status === 'complete') {
         console.log('Sign in complete, checking backend customer');
         // User is signed in
         // Ensure we have customer record
+        if (!user?.id) {
+          return { error: 'User not found after sign in' };
+        }
         const { customerId, error: customerError } = await createBackendCustomer(email, user.id);
         console.log('createBackendCustomer result:', { customerId, error: customerError });
         if (customerError && !customerId) {

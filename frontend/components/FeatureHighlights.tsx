@@ -2,7 +2,6 @@
 
 'use client';
 
-import Link from 'next/link';
 import { SignUpButton } from '@clerk/nextjs';
 
 const highlights = [

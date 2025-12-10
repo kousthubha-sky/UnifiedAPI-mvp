@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getStoredApiKey } from './api';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 export interface UsageMetrics {
   date: string;
   request_count: number;
@@ -17,8 +19,6 @@ export interface MetricsSummary {
   success_rate: number;
   daily_metrics: UsageMetrics[];
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 export function useMetrics(accessToken: string | null) {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);

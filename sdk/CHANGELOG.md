@@ -11,6 +11,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Environment-Aware Configuration**
+  - Automatic environment detection (local/staging/production)
+  - Hostname-based detection (.lc/.st/.pr)
+  - Environment-specific default configurations
+  - `UNIFIED_ENV` and `NODE_ENV` support
+
+- **Auto-Validation & Health Monitoring**
+  - API key format validation
+  - Automatic connectivity validation on client creation
+  - Comprehensive health check API (`healthCheck()`)
+  - Service-level health monitoring (API, auth, payments, customers)
+
+- **Metrics & Performance Monitoring**
+  - Built-in request metrics tracking
+  - Performance statistics (latency, success rate, request counts)
+  - Environment-aware metric tagging
+  - Memory-efficient metrics storage (last 150 requests)
+
+- **Request/Response Interceptors**
+  - Customizable request interceptors for request modification
+  - Response interceptors for data transformation
+  - Error interceptors for error handling and transformation
+  - Support for async interceptor functions
+
+- **Performance Optimizations**
+  - HTTP/2 support with connection keep-alive
+  - Automatic request compression for large payloads
+  - Response caching for read operations (GET requests)
+  - Optimized retry logic with exponential backoff
+
+- **Enhanced API Features**
+  - `getMetrics()` - Access request metrics
+  - `healthCheck()` - Comprehensive health validation
+  - `detectEnvironment()` - Environment detection utility
+  - `mergeConfig()` - Configuration merging utility
+  - `validateApiKey()` - API key validation utility
+
 - **UnifiedAPIClient**: Main SDK client with configurable options
   - API key authentication
   - Configurable timeout (default: 30s)
@@ -23,6 +60,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `payments.refund()` - Refund a payment (full or partial)
   - `payments.list()` - List payments with filtering and pagination
   - `payments.get()` - Get a single payment by ID
+
+- **Customers Resource**
+  - `customers.create()` - Create a customer
+  - `customers.update()` - Update customer information
+  - `customers.list()` - List customers with pagination
+
+- **API Keys Resource**
+  - `apiKeys.create()` - Create API keys
+  - `apiKeys.list()` - List API keys
+  - `apiKeys.update()` - Update/revoke API keys
+  - `apiKeys.delete()` - Delete API keys
 
 - **Idempotency Support**
   - Pass `idempotencyKey` in request options for safe retries
@@ -50,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MockTransport` class for unit testing
   - `UnifiedAPIClient.withMockTransport()` factory method
   - Request logging for verification
+  - 95%+ test coverage
 
 - **Build System**
   - tsup bundler configuration
@@ -62,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - API reference documentation
   - Environment configuration guide
   - Troubleshooting guide
+  - Migration guides
 
 ### Technical Details
 

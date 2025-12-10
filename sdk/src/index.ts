@@ -32,6 +32,7 @@ export { UnifiedAPIClient } from './client.js';
 export type {
   ClientConfig,
   RequestOptions,
+  Environment,
   PaymentProvider,
   PaymentStatus,
   CreatePaymentRequest,
@@ -56,6 +57,11 @@ export type {
   DeleteApiKeyResponse,
   RevokeApiKeyResponse,
   HealthResponse,
+  HealthCheckResult,
+  RequestMetrics,
+  RequestInterceptor,
+  ResponseInterceptor,
+  ErrorInterceptor,
   APIErrorResponse,
   Transport,
 } from './types.js';
@@ -83,6 +89,12 @@ export {
 
 // Transport (for advanced usage and testing)
 export { HttpTransport, MockTransport } from './transport.js';
+
+// Configuration utilities
+export { detectEnvironment, mergeConfig, validateApiKey, getEnvironmentConfig } from './config.js';
+
+// Metrics
+export { MetricsCollector } from './metrics.js';
 
 // Resources (for advanced typing)
 export { PaymentsResource } from './resources/payments.js';

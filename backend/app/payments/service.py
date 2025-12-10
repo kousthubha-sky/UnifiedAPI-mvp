@@ -29,6 +29,7 @@ from app.payments.errors import (
     InvalidProviderError,
     PaymentNotFoundError,
 )
+from app.payments.credential_service import PaymentCredentialService
 from app.payments.providers.base import PaymentProviderAdapter
 from app.payments.providers.paypal import PayPalAdapter
 from app.payments.providers.stripe import StripeAdapter
@@ -68,6 +69,7 @@ class PaymentService:
         settings: Settings,
         supabase: SupabaseClient | None = None,
         redis: Any = None,
+        credential_service: PaymentCredentialService | None = None,
     ) -> None:
         """Initialize the payment service.
 
@@ -75,10 +77,12 @@ class PaymentService:
             settings: Application settings.
             supabase: Supabase client for database operations.
             redis: Redis client for idempotency caching.
+            credential_service: Service for accessing encrypted payment credentials.
         """
         self.settings = settings
         self.supabase = supabase
         self.redis = redis
+        self.credential_service = credential_service or PaymentCredentialService(settings, supabase)
         self._adapters: dict[str, PaymentProviderAdapter] = {}
 
     def _get_adapter(self, provider: PaymentProvider) -> PaymentProviderAdapter:
@@ -99,10 +103,19 @@ class PaymentService:
             return self._adapters[provider_name]
 
         try:
+            # Determine environment for credential lookup
+            environment_map = {
+                "development": "local",
+                "staging": "staging",
+                "production": "production",
+                "test": "local"
+            }
+            environment = environment_map.get(self.settings.environment, "local")
+
             if provider == PaymentProvider.STRIPE:
-                adapter = StripeAdapter(self.settings)
+                adapter = StripeAdapter(self.credential_service, environment)
             elif provider == PaymentProvider.PAYPAL:
-                adapter = PayPalAdapter(self.settings)
+                adapter = PayPalAdapter(self.credential_service, environment, self.settings)
             else:
                 raise InvalidProviderError(provider_name)
 

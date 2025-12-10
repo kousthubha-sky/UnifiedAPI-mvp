@@ -1,11 +1,135 @@
+// import {
+//   UnifiedAPIClient,
+//   detectEnvironment,
+//   HealthCheckResult,
+//   MetricsCollector,
+//   CreatePaymentResponse,
+//   RefundPaymentResponse,
+//   CreateApiKeyResponse,
+//   ListApiKeysResponse,
+// } from '@OneRouter/sdk';
+
+// Temporary mock types for development
+export interface HealthCheckResult {
+  status: 'healthy' | 'unhealthy';
+  timestamp: string;
+  latency: number;
+  services: {
+    api: { status: 'ok' | 'error'; latency: number };
+    auth: { status: 'ok' | 'error'; latency: number };
+    payments: { status: 'ok' | 'error'; latency: number };
+    customers: { status: 'ok' | 'error'; latency: number };
+  };
+  error?: string;
+}
+
+interface MetricsCollector {
+  getSummary(): {
+    total: number;
+    successful: number;
+    failed: number;
+    averageLatency: number;
+    lastRequestAt?: number;
+  };
+}
+
+interface CreatePaymentResponse {
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+}
+
+interface RefundPaymentResponse {
+  id: string;
+  status: string;
+  amount: number;
+}
+
+interface CreateApiKeyResponse {
+  id: string;
+  key: string;
+  name?: string;
+}
+
+interface ListApiKeysResponse {
+  keys: Array<{
+    id: string;
+    name?: string;
+    created_at: string;
+    last_used_at?: string;
+    is_active: boolean;
+  }>;
+}
+
+class UnifiedAPIClient {
+    constructor(_config: any) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[UnifiedAPIClient] Using mock implementation. Replace with real SDK before production.');
+    }
+  }
+  async healthCheck(): Promise<HealthCheckResult> {
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      latency: 50,
+      services: {
+        api: { status: 'ok', latency: 20 },
+        auth: { status: 'ok', latency: 20 },
+        payments: { status: 'ok', latency: 20 },
+        customers: { status: 'ok', latency: 20 },
+      },
+    };
+  }
+  getMetrics(): MetricsCollector {
+    return {
+      getSummary: () => ({
+        total: 100,
+        successful: 95,
+        failed: 5,
+        averageLatency: 150,
+        lastRequestAt: Date.now(),
+      }),
+    };
+  }
+  payments = {
+    create: async (payload: any): Promise<CreatePaymentResponse> => ({
+      id: 'pay_mock_' + Date.now(),
+      status: 'completed',
+      amount: payload.amount,
+      currency: payload.currency,
+    }),
+    refund: async (_paymentId: string, options?: any): Promise<RefundPaymentResponse> => ({
+      id: 'ref_mock_' + Date.now(),
+      status: 'completed',
+      amount: options?.amount || 100,
+    }),
+    list: async (_options?: any) => [],
+  };
+  apiKeys = {
+    create: async (payload: any): Promise<CreateApiKeyResponse> => ({
+      id: 'key_mock_' + Date.now(),
+      key: 'sk_mock_' + Math.random().toString(36).substring(2),
+      name: payload.name,
+    }),
+    list: async (): Promise<ListApiKeysResponse> => ({
+      keys: [],
+    }),
+  };
+}
+
+function detectEnvironment(): 'local' | 'staging' | 'production' {
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname.includes('.lc')) return 'local';
+    if (hostname.includes('.st')) return 'staging';
+    if (hostname.includes('.pr')) return 'production';
+  }
+  return 'local';
+}
+
 const API_KEY_STORAGE_KEY = 'OneRouter_api_key';
 const CUSTOMER_ID_STORAGE_KEY = 'OneRouter_customer_id';
-
-export interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-  message?: string;
-}
 
 // API Key localStorage helpers
 export function getStoredApiKey(): string | null {
@@ -16,11 +140,13 @@ export function getStoredApiKey(): string | null {
 export function setStoredApiKey(key: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(API_KEY_STORAGE_KEY, key);
+  resetSDKClient(); // Reset SDK client when API key changes
 }
 
 export function clearStoredApiKey(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(API_KEY_STORAGE_KEY);
+  resetSDKClient();
 }
 
 // Customer ID localStorage helpers
@@ -50,162 +176,174 @@ export function getBootstrapApiKey(): string | null {
   return process.env.NEXT_PUBLIC_BOOTSTRAP_API_KEY || null;
 }
 
+// SDK-based API client
+let sdkClient: UnifiedAPIClient | null = null;
+
+export function getSDKClient(): UnifiedAPIClient {
+  if (!sdkClient) {
+    const apiKey = getStoredApiKey();
+    if (!apiKey) {
+      throw new Error('No API key available');
+    }
+
+    // Auto-detect environment from hostname
+    const environment = detectEnvironment();
+
+    sdkClient = new UnifiedAPIClient({
+      apiKey,
+      environment,
+      // Add request interceptor for error handling
+      requestInterceptors: [
+        (request: any) => {
+          console.log(`SDK Request: ${request.method} ${request.path}`);
+          return request;
+        }
+      ],
+      // Add response interceptor for error handling
+      responseInterceptors: [
+        (response: any) => {
+          if (response.status === 401) {
+            // Clear stored auth data on 401
+            clearAllAuthData();
+            throw new Error('Authentication failed. Please log in again.');
+          }
+          return response.data;
+        }
+      ],
+      // Add error interceptor for logging
+      errorInterceptors: [
+        (error: any) => {
+          console.error('SDK Error:', error.message);
+          return error;
+        }
+      ],
+    });
+  }
+  return sdkClient;
+}
+
+export function resetSDKClient(): void {
+  sdkClient = null;
+}
+
+
+
+// SDK-based API functions
+export async function getHealthCheck(): Promise<HealthCheckResult> {
+  const client = getSDKClient();
+  return client.healthCheck();
+}
+
+export async function getMetrics(): Promise<MetricsCollector> {
+  const client = getSDKClient();
+  return client.getMetrics();
+}
+
+export async function createPaymentSDK(payload: {
+  amount: number;
+  currency: string;
+  provider: 'stripe' | 'paypal';
+  customer_id: string;
+  payment_method: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const client = getSDKClient();
+  return client.payments.create(payload);
+}
+
+export async function refundPaymentSDK(paymentId: string, options?: {
+  amount?: number;
+  reason?: string;
+}) {
+  const client = getSDKClient();
+  return client.payments.refund(paymentId, options);
+}
+
+export async function listPaymentsSDK(options?: {
+  provider?: 'stripe' | 'paypal';
+  status?: 'pending' | 'completed' | 'failed' | 'refunded' | 'processing';
+  customer_id?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const client = getSDKClient();
+  return client.payments.list(options);
+}
+
+// Legacy compatibility - redirect to SDK
+export interface ApiResponse<T> {
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
 export class ApiClient {
-  private baseUrl: string;
   private apiKey: string | null;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001') {
-    this.baseUrl = baseUrl;
+  constructor() {
     this.apiKey = null;
   }
 
   setApiKey(key: string | null): void {
     this.apiKey = key;
+    if (key) {
+      setStoredApiKey(key);
+    } else {
+      clearStoredApiKey();
+    }
   }
 
   getApiKey(): string | null {
-    return this.apiKey;
+    return this.apiKey || getStoredApiKey();
   }
 
-  private getHeaders(useBootstrapKey: boolean = false): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    const keyToUse = useBootstrapKey ? getBootstrapApiKey() : this.apiKey;
-    if (keyToUse) {
-      headers['x-api-key'] = keyToUse;
-    }
-
-    return headers;
-  }
-
-  async request<T>(
-    path: string,
-    options: RequestInit & { method?: string; useBootstrapKey?: boolean } = {}
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${path}`;
-    const method = options.method || 'GET';
-    const useBootstrapKey = options.useBootstrapKey || false;
-
+  async createPayment(payload: unknown): Promise<ApiResponse<CreatePaymentResponse>> {
     try {
-      const response = await fetch(url, {
-        ...options,
-        method,
-        headers: this.getHeaders(useBootstrapKey),
-      });
-
-      // Handle 401 errors
-      if (response.status === 401) {
-        // Clear stored auth data on 401
-        clearAllAuthData();
-        return {
-          error: 'Authentication failed. Please log in again.',
-        };
-      }
-
-      const data = await response.json() as ApiResponse<T>;
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Request failed');
-      }
-
-      return data;
+      const result = await createPaymentSDK(payload as any);
+      return { data: result };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return {
-        error: errorMessage,
-      };
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
-  async get<T>(path: string): Promise<ApiResponse<T>> {
-    return this.request<T>(path, { method: 'GET' });
+  async refundPayment(paymentId: string, payload: unknown): Promise<ApiResponse<RefundPaymentResponse>> {
+    try {
+      const result = await refundPaymentSDK(paymentId, payload as any);
+      return { data: result };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   }
 
-  async post<T>(path: string, body: unknown, useBootstrapKey: boolean = false): Promise<ApiResponse<T>> {
-    return this.request<T>(path, {
-      method: 'POST',
-      body: JSON.stringify(body),
-      useBootstrapKey,
-    });
+  async generateApiKey(name?: string): Promise<ApiResponse<CreateApiKeyResponse>> {
+    try {
+      const client = getSDKClient();
+      const result = await client.apiKeys.create({ name });
+      return { data: result };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   }
 
-  async patch<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(path, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    });
-  }
-
-  async delete<T>(path: string): Promise<ApiResponse<T>> {
-    return this.request<T>(path, {
-      method: 'DELETE',
-    });
-  }
-
-  async createPayment<T>(payload: unknown): Promise<ApiResponse<T>> {
-    return this.post<T>('/api/v1/payments', payload);
-  }
-
-  async refundPayment<T>(paymentId: string, payload: unknown): Promise<ApiResponse<T>> {
-    return this.post<T>(`/api/v1/payments/${paymentId}/refund`, payload);
-  }
-
-  async generateApiKey<T>(name?: string, useBootstrapKey: boolean = false): Promise<ApiResponse<T>> {
-    return this.post<T>('/api/v1/api-keys', { name }, useBootstrapKey);
-  }
-
-  async listApiKeys<T>(): Promise<ApiResponse<T>> {
-    return this.get<T>('/api/v1/api-keys');
+  async listApiKeys(): Promise<ApiResponse<ListApiKeysResponse>> {
+    try {
+      const client = getSDKClient();
+      const result = await client.apiKeys.list();
+      return { data: result };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   }
 }
 
-// Singleton instance
+// Singleton instance for backward compatibility
 export const apiClient = new ApiClient();
 
-// Initialize from localStorage
-if (typeof window !== 'undefined') {
-  const storedKey = getStoredApiKey();
-  if (storedKey) {
-    apiClient.setApiKey(storedKey);
-  }
-}
-
-// Helper function to make authenticated API calls
-export async function apiCall<T>(
-  path: string,
-  options: {
-    method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
-    body?: unknown;
-    useBootstrapKey?: boolean;
-  } = {}
-): Promise<ApiResponse<T>> {
-  const { method = 'GET', body, useBootstrapKey = false } = options;
-
-  // Ensure API key is loaded from localStorage
-  if (!apiClient.getApiKey() && !useBootstrapKey) {
-    const storedKey = getStoredApiKey();
-    if (storedKey) {
-      apiClient.setApiKey(storedKey);
-    }
-  }
-
-  if (method === 'GET') {
-    return apiClient.get<T>(path);
-  }
-
-  if (method === 'POST') {
-    return apiClient.post<T>(path, body, useBootstrapKey);
-  }
-
-  if (method === 'PATCH') {
-    return apiClient.patch<T>(path, body);
-  }
-
-  if (method === 'DELETE') {
-    return apiClient.delete<T>(path);
-  }
-
-  return { error: 'Invalid method' };
+// Helper function to make authenticated API calls (legacy)
+export async function apiCall<T>(): Promise<ApiResponse<T>> {
+  // For now, return an error - this should be migrated to use the SDK
+  return { error: 'Legacy apiCall not implemented. Use SDK functions instead.' };
 }

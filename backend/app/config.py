@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     )
 
     # Server Configuration
-    environment: Literal["development", "production", "test"] = Field(
+    environment: Literal["development", "staging", "production", "test"] = Field(
         default="development",
         alias="NODE_ENV",
         description="Runtime environment",
@@ -72,36 +72,38 @@ class Settings(BaseSettings):
         description="Maximum Redis connection retries",
     )
 
-    # Payment Provider Configuration
+    # Payment Provider Configuration (now stored in database)
+    # These environment variables are deprecated and will be removed
+    # Credentials are now managed through the admin UI and stored encrypted in the database
     stripe_api_key: str | None = Field(
         default=None,
         alias="STRIPE_API_KEY",
-        description="Stripe API key",
+        description="[DEPRECATED] Stripe API key - migrate to database storage",
     )
     stripe_webhook_secret: str | None = Field(
         default=None,
         alias="STRIPE_WEBHOOK_SECRET",
-        description="Stripe webhook secret",
+        description="[DEPRECATED] Stripe webhook secret - migrate to database storage",
     )
     paypal_mode: Literal["sandbox", "live"] = Field(
         default="sandbox",
         alias="PAYPAL_MODE",
-        description="PayPal mode",
+        description="PayPal mode (still used for sandbox/live detection)",
     )
     paypal_client_id: str | None = Field(
         default=None,
         alias="PAYPAL_CLIENT_ID",
-        description="PayPal client ID",
+        description="[DEPRECATED] PayPal client ID - migrate to database storage",
     )
     paypal_client_secret: str | None = Field(
         default=None,
         alias="PAYPAL_CLIENT_SECRET",
-        description="PayPal client secret",
+        description="[DEPRECATED] PayPal client secret - migrate to database storage",
     )
     paypal_webhook_id: str | None = Field(
         default=None,
         alias="PAYPAL_WEBHOOK_ID",
-        description="PayPal webhook ID",
+        description="[DEPRECATED] PayPal webhook ID - migrate to database storage",
     )
     paypal_currency: str = Field(
         default="USD",
@@ -109,6 +111,25 @@ class Settings(BaseSettings):
         description="Default PayPal currency",
     )
 
+    @field_validator('credential_encryption_key')
+    @classmethod
+    def validate_encryption_key(cls, v: str, info) -> str:
+        """Ensure production environments don't use the default encryption key."""
+        # Get environment from the validation context
+        if hasattr(info, 'data') and info.data.get('environment') == 'production':
+            if v == 'default-dev-encryption-key-change-in-production':
+                raise ValueError(
+                    'Production environment must not use the default encryption key. '
+                    'Set CREDENTIAL_ENCRYPTION_KEY environment variable.'
+                )
+        return v
+
+    # Credential encryption key
+    credential_encryption_key: str = Field(
+        default="default-dev-encryption-key-change-in-production",
+        alias="CREDENTIAL_ENCRYPTION_KEY",
+        description="Key for encrypting payment provider credentials in database",
+    )
     # Database Configuration
     database_pool_size: int = Field(
         default=20,
@@ -131,6 +152,13 @@ class Settings(BaseSettings):
         default=None,
         alias="CLERK_SECRET_KEY",
         description="Clerk secret key for JWT verification",
+    )
+
+    # Test Bypass Configuration
+    test_bypass_token: str | None = Field(
+        default=None,
+        alias="TEST_BYPASS_TOKEN",
+        description="Secret token for test bypass in non-production environments",
     )
 
     # CORS & API Configuration
@@ -175,6 +203,11 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
     @property
+    def is_staging(self) -> bool:
+        """Check if running in staging environment."""
+        return self.environment == "staging"
+
+    @property
     def is_development(self) -> bool:
         """Check if running in development environment."""
         return self.environment == "development"
@@ -183,6 +216,11 @@ class Settings(BaseSettings):
     def is_test(self) -> bool:
         """Check if running in test environment."""
         return self.environment == "test"
+
+    @property
+    def is_non_production(self) -> bool:
+        """Check if running in a non-production environment."""
+        return self.environment != "production"
 
     @property
     def cors_methods_list(self) -> list[str]:

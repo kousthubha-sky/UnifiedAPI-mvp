@@ -13,6 +13,7 @@ import httpx
 
 from app.config import Settings
 from app.app_logging import get_logger
+from app.payments.credential_service import PaymentCredentialService
 from app.payments.errors import (
     PaymentFailedError,
     PaymentNotFoundError,
@@ -40,28 +41,46 @@ class PayPalAdapter(PaymentProviderAdapter):
     SANDBOX_BASE_URL = "https://api-m.sandbox.paypal.com"
     LIVE_BASE_URL = "https://api-m.paypal.com"
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, credential_service: PaymentCredentialService, environment: str, settings: Settings) -> None:
         """Initialize the PayPal adapter.
 
         Args:
-            settings: Application settings containing PayPal credentials.
+            credential_service: Service for accessing encrypted credentials
+            environment: Environment (local/staging/production)
+            settings: Application settings
 
         Raises:
             ValueError: If PayPal credentials are not configured.
         """
-        if not settings.paypal_client_id or not settings.paypal_client_secret:
-            raise ValueError("PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are required")
-
-        self.client_id = settings.paypal_client_id
-        self.client_secret = settings.paypal_client_secret
+        self.credential_service = credential_service
+        self.environment = environment
         self.mode = settings.paypal_mode
         self.default_currency = settings.paypal_currency
 
         self.base_url = self.LIVE_BASE_URL if self.mode == "live" else self.SANDBOX_BASE_URL
-
         self._access_token: str | None = None
-        self._http_client: httpx.AsyncClient | None = None
+        self._token_expires_at: float | None = None
 
+    async def _get_client_credentials(self) -> tuple[str, str]:
+        """Get PayPal client ID and secret from credential service.
+
+        Returns:
+            Tuple of (client_id, client_secret)
+
+        Raises:
+            ValueError: If credentials are not configured
+        """
+        client_id = await self.credential_service.get_credential_value(
+            self.environment, 'paypal', 'client_id'
+        )
+        client_secret = await self.credential_service.get_credential_value(
+            self.environment, 'paypal', 'client_secret'
+        )
+
+        if not client_id or not client_secret:
+            raise ValueError(f"PayPal credentials not configured for environment: {self.environment}")
+
+        return client_id, client_secret
     @property
     def provider_name(self) -> str:
         """Return the provider name."""
@@ -93,7 +112,8 @@ class PayPalAdapter(PaymentProviderAdapter):
 
         try:
             client = await self._get_http_client()
-            auth_string = f"{self.client_id}:{self.client_secret}"
+            client_id, client_secret = await self._get_client_credentials()
+            auth_string = f"{client_id}:{client_secret}"
             auth_header = base64.b64encode(auth_string.encode()).decode()
 
             response = await client.post(

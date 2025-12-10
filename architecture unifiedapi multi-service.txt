@@ -1,0 +1,345 @@
+# OneRouter Multi-Service Architecture
+
+## Overview
+OneRouter is evolving from a payment-focused API to a unified multi-service integration platform. This document outlines the new architecture that enables customers to enable/configure different service categories (payments, email, SMS, storage) and choose providers within each category, similar to Clerk's service enablement model.
+
+## Core Principles
+- **Unified SDK**: Single API key for all services
+- **Service Categories**: Modular service types (payments, email, SMS, etc.)
+- **Provider Choice**: Multiple providers per service category
+- **Customer Control**: Enable/disable services and choose providers
+- **Backward Compatibility**: Gradual migration from current architecture
+
+## Current State (Phase 0)
+```
+Frontend (Next.js) → SDK (Mock) → Direct API Calls
+                              ↓
+Backend (FastAPI) → Separate Routers (payments, customers, api-keys)
+```
+
+## Target Architecture (Phase 3+)
+```
+Frontend → Unified SDK → Service Router → Provider Handlers
+                    ↓              ↓              ↓
+            Single API Key    Auto-routing    Stripe/PayPal/etc
+```
+
+---
+
+# Phase 1: TypeScript SDK → Payment Service Migration
+
+## Objective
+Migrate the current payment functionality to use the new service-based architecture while maintaining backward compatibility.
+
+## Current SDK Structure (TO BE UPDATED)
+```
+src/
+├── client.ts          # UnifiedAPIClient with direct resources
+├── resources/
+│   ├── payments.ts    # Direct payment methods
+│   ├── customers.ts   # Direct customer methods
+│   └── api_keys.ts    # Direct API key methods
+└── types.ts           # Payment-specific types
+```
+
+## New SDK Structure (TARGET)
+```
+src/
+├── client.ts          # UnifiedAPIClient with service abstraction
+├── services/
+│   ├── payments.ts    # PaymentService class
+│   ├── base.ts        # Base service class
+│   └── types.ts       # Service-specific types
+├── transport.ts       # HTTP transport layer
+└── types.ts           # Unified types
+```
+
+## Implementation Steps
+
+### 1.1 Create Service Base Classes
+```typescript
+// src/services/base.ts
+export abstract class BaseService {
+  protected transport: Transport;
+
+  constructor(transport: Transport) {
+    this.transport = transport;
+  }
+
+  protected async request<T>(
+    service: string,
+    action: string,
+    data?: any
+  ): Promise<T> {
+    return this.transport.request('POST', `/api/v1/services/${service}`, {
+      action,
+      data
+    });
+  }
+}
+
+// src/services/payments.ts
+export class PaymentService extends BaseService {
+  async create(params: CreatePaymentRequest): Promise<CreatePaymentResponse> {
+    return this.request('payments', 'create', params);
+  }
+
+  async refund(paymentId: string, params?: RefundPaymentRequest): Promise<RefundPaymentResponse> {
+    return this.request('payments', 'refund', { paymentId, ...params });
+  }
+
+  async list(params?: ListPaymentsRequest): Promise<ListPaymentsResponse> {
+    return this.request('payments', 'list', params);
+  }
+}
+```
+
+### 1.2 Update Main Client
+```typescript
+// src/client.ts
+export class UnifiedAPIClient {
+  public readonly payments: PaymentService;
+
+  constructor(config: ClientConfig) {
+    const transport = new HttpTransport(config);
+    this.payments = new PaymentService(transport);
+  }
+}
+```
+
+### 1.3 Backend Service Router
+```python
+# backend/app/services/router.py
+from typing import Dict, Any
+from app.services.payments.handler import PaymentHandler
+
+class ServiceRouter:
+    def __init__(self):
+        self.handlers = {
+            'payments': PaymentHandler()
+        }
+
+    async def route_request(
+        self,
+        customer_id: str,
+        service: str,
+        action: str,
+        data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if service not in self.handlers:
+            raise ValueError(f"Service {service} not available")
+
+        handler = self.handlers[service]
+        return await handler.handle_action(customer_id, action, data)
+
+# backend/app/services/payments/handler.py
+class PaymentHandler:
+    async def handle_action(self, customer_id: str, action: str, data: Dict) -> Dict:
+        if action == 'create':
+            return await self.create_payment(customer_id, data)
+        elif action == 'refund':
+            return await self.refund_payment(customer_id, data)
+        elif action == 'list':
+            return await self.list_payments(customer_id, data)
+        else:
+            raise ValueError(f"Unknown action: {action}")
+```
+
+### 1.4 Update Backend Main App
+```python
+# backend/app/main.py
+from app.services.router import ServiceRouter
+
+service_router = ServiceRouter()
+
+@app.post("/api/v1/services/{service_category}")
+async def handle_service_request(
+    service_category: str,
+    request: ServiceRequest,
+    auth: AuthContext = Depends(require_customer)
+):
+    return await service_router.route_request(
+        customer_id=auth.customer_id,
+        service=service_category,
+        action=request.action,
+        data=request.data
+    )
+```
+
+### 1.5 Update Frontend Integration
+```typescript
+// frontend/lib/api.ts
+export function getSDKClient(): UnifiedAPIClient {
+  if (!sdkClient) {
+    const apiKey = getStoredApiKey();
+    if (!apiKey) throw new Error('No API key available');
+
+    sdkClient = new UnifiedAPIClient({
+      apiKey,
+      baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL
+    });
+  }
+  return sdkClient;
+}
+
+// Update payment functions
+export async function createPaymentSDK(payload: CreatePaymentRequest) {
+  const client = getSDKClient();
+  return client.payments.create(payload);
+}
+```
+
+## Migration Strategy
+- **Backward Compatibility**: Keep existing `/api/v1/payments/*` endpoints during transition
+- **Gradual Rollout**: Update SDK first, then backend, then frontend
+- **Feature Flags**: Allow customers to opt into new architecture
+- **Rollback Plan**: Ability to revert to old endpoints if issues arise
+
+## Testing Requirements
+- Unit tests for new service classes
+- Integration tests for service router
+- End-to-end tests for complete payment flow
+- Backward compatibility tests
+
+---
+
+# Phase 2: Service Registry & Configuration
+
+## Objective
+Add database-driven service configuration allowing customers to enable/disable services and choose providers.
+
+## Database Schema
+```sql
+-- Service categories
+CREATE TABLE service_categories (
+  id UUID PRIMARY KEY,
+  name VARCHAR UNIQUE NOT NULL, -- 'payments', 'email', 'sms'
+  display_name VARCHAR NOT NULL,
+  description TEXT,
+  is_enabled BOOLEAN DEFAULT true
+);
+
+-- Available providers
+CREATE TABLE service_providers (
+  id UUID PRIMARY KEY,
+  category_id UUID REFERENCES service_categories(id),
+  name VARCHAR NOT NULL, -- 'stripe', 'paypal', 'sendgrid'
+  display_name VARCHAR NOT NULL,
+  config_schema JSONB,
+  is_enabled BOOLEAN DEFAULT true
+);
+
+-- Customer service configurations
+CREATE TABLE customer_services (
+  id UUID PRIMARY KEY,
+  customer_id UUID REFERENCES customers(id),
+  category_id UUID REFERENCES service_categories(id),
+  provider_id UUID REFERENCES service_providers(id),
+  is_enabled BOOLEAN DEFAULT false,
+  config JSONB, -- Encrypted provider credentials
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+## Backend Changes
+- Add service configuration endpoints
+- Implement provider credential encryption
+- Update service router to use customer preferences
+- Add service availability checking
+
+## SDK Changes
+- Add service discovery on client initialization
+- Dynamic service loading based on customer config
+- Service availability checking
+
+## Frontend Changes
+- Add service configuration UI in main dashboard
+- Provider selection interface
+- Service testing capabilities
+
+---
+
+# Phase 3: Additional Services
+
+## Email Service
+- Providers: SendGrid, Mailgun, AWS SES
+- Actions: send, templates, webhooks
+- Configuration: API keys, domains, templates
+
+## SMS Service
+- Providers: Twilio, AWS SNS
+- Actions: send, bulk_send, status_check
+- Configuration: API credentials, phone numbers
+
+## Storage Service
+- Providers: AWS S3, Cloudflare R2
+- Actions: upload, download, delete, list
+- Configuration: buckets, credentials, regions
+
+---
+
+# Phase 4: Advanced Features
+
+## Analytics & Monitoring
+- Service usage metrics
+- Performance monitoring
+- Error tracking
+- Cost analysis
+
+## Webhooks & Events
+- Unified webhook delivery
+- Event-driven architecture
+- Retry mechanisms
+- Security validation
+
+## Admin Dashboard
+- Service management
+- Customer oversight
+- Provider monitoring
+- System health
+
+---
+
+# Implementation Timeline
+
+## Week 1-2: Phase 1 (Payment Service Migration)
+- Restructure SDK to use service architecture
+- Implement service router in backend
+- Update frontend integration
+- Maintain backward compatibility
+
+## Week 3-4: Phase 2 (Service Registry)
+- Database schema for service configuration
+- Service discovery and loading
+- Basic configuration UI
+- Testing and validation
+
+## Week 5+: Phase 3+ (Additional Services)
+- Email service implementation
+- SMS service implementation
+- Storage service implementation
+- Advanced features
+
+---
+
+# Success Metrics
+
+## Developer Experience
+- ✅ Single SDK for all services
+- ✅ Simple service enablement
+- ✅ Provider choice flexibility
+- ✅ Comprehensive documentation
+
+## Platform Reliability
+- ✅ 99.9% uptime across services
+- ✅ <100ms average latency
+- ✅ Comprehensive error handling
+- ✅ Backward compatibility
+
+## Business Growth
+- ✅ Increased service adoption
+- ✅ Higher customer retention
+- ✅ Expanded revenue streams
+- ✅ Competitive differentiation</content>
+<parameter name="filePath">architecture unifiedapi multi-service.txt

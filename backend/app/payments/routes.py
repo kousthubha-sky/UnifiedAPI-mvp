@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from app.config import Settings, get_settings
 from app.dependencies import RedisDep, SupabaseDep, get_redis, get_supabase
 from app.app_logging import get_logger
+from app.payments.credential_service import PaymentCredentialService
 from app.payments.service import PaymentService
 from app.payments.types import (
     CreatePaymentRequest,
@@ -36,10 +37,13 @@ def get_payment_service(
     redis: RedisDep,
 ) -> PaymentService:
     """Dependency to get the payment service."""
+    credential_service = PaymentCredentialService(settings, supabase)
+
     return PaymentService(
         settings=settings,
         supabase=supabase,
         redis=redis,
+        credential_service=credential_service,
     )
 
 

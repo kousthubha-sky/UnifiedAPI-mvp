@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.config import Settings, get_settings
 from app.errors import (
@@ -452,6 +452,30 @@ def require_customer(request: Request) -> AuthContext:
     return auth_ctx
 
 
+def require_admin_role(request: Request) -> AuthContext:
+    """Dependency that requires admin-level authentication.
+
+    Use this for sensitive endpoints that only admins should access.
+
+    Args:
+        request: The FastAPI request
+
+    Returns:
+        AuthContext with admin tier
+
+    Raises:
+        HTTPException: If user does not have admin tier
+    """
+    auth_ctx = get_auth_context(request)
+    if auth_ctx.tier != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint requires admin access"
+        )
+    return auth_ctx
+
+
 # Type aliases for dependency injection
 AuthDep = Annotated[AuthContext, Depends(authenticate_request)]
 CustomerAuthDep = Annotated[AuthContext, Depends(require_customer)]
+AdminAuthDep = Annotated[AuthContext, Depends(require_admin_role)]
