@@ -229,17 +229,22 @@ class PaymentService:
                 return CreatePaymentResponse(**cached)
 
         try:
-            # Get provider adapter
-            adapter = self._get_adapter(request.provider)
+            # Use Stripe as default provider for SDK compatibility
+            provider = PaymentProvider.STRIPE
+            adapter = self._get_adapter(provider)
 
             # Create payment with provider
             result = await adapter.create_payment(
                 amount=request.amount,
                 currency=request.currency,
-                payment_method=request.payment_method,
-                customer_id=request.customer_id,
+                payment_method=None,  # Let provider handle payment method
+                customer_id=customer_id,  # From auth context
                 description=request.description,
-                metadata=request.metadata,
+                metadata={
+                    **(request.metadata or {}),
+                    "customer_email": request.customer_email,
+                    "customer_name": request.customer_name,
+                },
                 idempotency_key=idempotency_key,
             )
 
@@ -251,13 +256,20 @@ class PaymentService:
             if self.supabase:
                 await self._save_payment_to_db(
                     payment_id=payment_id,
-                    provider=request.provider.value,
+                    provider=provider.value,
                     provider_transaction_id=result.provider_transaction_id,
                     amount=request.amount,
                     currency=request.currency.upper(),
                     status=result.status.value,
-                    customer_id=request.customer_id,
-                    metadata=request.metadata,
+                    customer_id=customer_id,
+                    description=request.description,
+                    customer_email=request.customer_email,
+                    customer_name=request.customer_name,
+                    metadata={
+                        **(request.metadata or {}),
+                        "customer_email": request.customer_email,
+                        "customer_name": request.customer_name,
+                    },
                     created_at=created_at,
                 )
 
@@ -270,7 +282,11 @@ class PaymentService:
                 status=result.status,
                 created_at=created_at,
                 trace_id=trace_id,
-                metadata=request.metadata,
+                metadata={
+                    **(request.metadata or {}),
+                    "customer_email": request.customer_email,
+                    "customer_name": request.customer_name,
+                },
                 provider_metadata=result.provider_metadata,
                 client_secret=result.client_secret,
             )
@@ -286,10 +302,10 @@ class PaymentService:
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             await log_payment_success(
                 supabase=self.supabase,
-                customer_id=customer_id or request.customer_id,
-                endpoint="/api/v1/payments/create",
+                customer_id=customer_id,
+                endpoint="/api/v1/payments",
                 method="POST",
-                provider=request.provider.value,
+                provider=provider.value,
                 provider_transaction_id=result.provider_transaction_id,
                 amount=request.amount,
                 currency=request.currency,
@@ -300,7 +316,7 @@ class PaymentService:
             logger.info(
                 "Payment created successfully",
                 payment_id=payment_id,
-                provider=request.provider.value,
+                provider=provider.value,
                 provider_transaction_id=result.provider_transaction_id,
                 amount=request.amount,
                 currency=request.currency,
@@ -313,10 +329,10 @@ class PaymentService:
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             await log_payment_failure(
                 supabase=self.supabase,
-                customer_id=customer_id or request.customer_id,
+                customer_id=customer_id,
                 endpoint="/api/v1/payments/create",
                 method="POST",
-                provider=request.provider.value,
+                provider=provider.value,
                 error_message=str(e),
                 status=getattr(e, "status_code", 500),
                 latency_ms=latency_ms,
@@ -577,6 +593,9 @@ class PaymentService:
         currency: str,
         status: str,
         customer_id: str,
+        description: str | None = None,
+        customer_email: str | None = None,
+        customer_name: str | None = None,
         metadata: dict[str, Any] | None = None,
         created_at: str | None = None,
     ) -> None:
@@ -606,6 +625,9 @@ class PaymentService:
                 "currency": currency,
                 "status": status,
                 "customer_id": customer_id,
+                "description": description,
+                "customer_email": customer_email,
+                "customer_name": customer_name,
                 "metadata": metadata,
                 "created_at": created_at or datetime.now(UTC).isoformat(),
                 "updated_at": datetime.now(UTC).isoformat(),

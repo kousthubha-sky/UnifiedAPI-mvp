@@ -79,7 +79,7 @@ describe('MetricsCollector', () => {
       });
       collector.record({
         method: 'GET',
-        path: '/api/v1/customers',
+        path: '/api/v1/payments',
         duration: 150,
         statusCode: 500,
         success: false,
@@ -95,7 +95,7 @@ describe('MetricsCollector', () => {
 
     it('should filter by path', () => {
       const paymentMetrics = collector.getMetricsFiltered({ path: 'payments' });
-      expect(paymentMetrics).toHaveLength(2);
+      expect(paymentMetrics).toHaveLength(3);
       expect(paymentMetrics.every(m => m.path.includes('payments'))).toBe(true);
     });
 
@@ -110,7 +110,7 @@ describe('MetricsCollector', () => {
       const baseTime = allMetrics[0].timestamp;
       const recentMetrics = collector.getMetricsFiltered({ since: baseTime + 1500 });
       expect(recentMetrics).toHaveLength(1);
-      expect(recentMetrics[0].path).toBe('/api/v1/customers');
+      expect(recentMetrics[0].path).toBe('/api/v1/payments');
     });
 
     it('should combine multiple filters', () => {

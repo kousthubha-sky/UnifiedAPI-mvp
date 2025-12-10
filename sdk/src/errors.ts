@@ -64,11 +64,11 @@ export class OneRouterError extends Error {
    */
   static fromResponse(response: APIErrorResponse, statusCode: number): OneRouterError {
     return createTypedError(
-      response.error,
-      response.code,
+      response.detail || response.error || 'Unknown error',
+      response.code || 'UNKNOWN_ERROR',
       statusCode,
       response.trace_id,
-      response.details
+      response.errors || response.details
     );
   }
 

@@ -1,26 +1,490 @@
 # @OneRouter/sdk
 
-Official Node.js/TypeScript SDK for the OneRouter Unified Payment API.
+**The Unified Payment SDK** - One API, All Payment Methods, Zero Hassle.
 
 [![npm version](https://badge.fury.io/js/@OneRouter%2Fsdk.svg)](https://badge.fury.io/js/@OneRouter%2Fsdk)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+> **🚀 Revolutionary Payment Integration**: Same SDK works with **Stripe Connect** (one-click setup) and **BYOK** (bring your own keys) automatically. No code changes required!
 
-- 🔐 **Secure Authentication** - API key authentication with optional HMAC request signing
-- 🔄 **Automatic Retries** - Configurable retry with exponential backoff for transient failures
-- 🆔 **Idempotency Support** - Safe retries with idempotency keys
-- 📊 **Request Tracing** - Automatic trace ID generation for debugging
-- 🎯 **Type Safety** - Full TypeScript support with comprehensive type definitions
-- 🧪 **Testable** - Built-in mock transport for unit testing
-- 📦 **Dual Module** - Supports both ESM and CommonJS
-- 🌍 **Environment-Aware** - Auto-detects local/staging/production from hostname
-- ✅ **Auto-Validation** - Validates API keys and connectivity on setup
-- 📈 **Metrics Tracking** - Built-in request metrics and performance monitoring
-- 🔌 **Interceptors** - Customizable request/response/error interceptors
-- ⚡ **Performance Optimized** - HTTP/2, compression, and response caching
-- 🔍 **Health Monitoring** - Comprehensive service health checks
+## ✨ What Makes OneRouter Different
+
+Unlike traditional payment SDKs that lock you into one provider, OneRouter gives you the **best of both worlds**:
+
+- **🔗 Stripe Connect**: One-click OAuth setup, automatic token refresh, dashboard access
+- **🔑 BYOK (Bring Your Own Keys)**: Full control, multi-provider support, advanced configurations
+- **🔄 Hybrid Mode**: Switch between methods instantly without code changes
+- **🎯 Unified API**: Single interface for all payment operations
+
+## 🎯 Perfect For
+
+- **SaaS Platforms** - White-label payment processing
+- **Marketplaces** - Multi-vendor payment handling
+- **E-commerce** - Flexible payment integration
+- **Fintech Startups** - Rapid prototyping to production
+- **Enterprise Apps** - Complex payment workflows
+
+## ⚡ Quick Start (3 Minutes)
+
+### 1. Install
+```bash
+npm install @OneRouter/sdk
+```
+
+### 2. Initialize
+```typescript
+import { UnifiedAPIClient } from '@OneRouter/sdk';
+
+const client = new UnifiedAPIClient({
+  apiKey: 'sk_your_api_key', // Get from dashboard
+});
+```
+
+### 3. Accept Payments
+```typescript
+// Works with Connect OR BYOK automatically! 🎉
+const payment = await client.payments.create({
+  amount: 10000, // $100.00 in cents
+  currency: 'usd',
+  description: 'Premium subscription',
+  customer_email: 'user@example.com'
+});
+
+console.log(`Payment ${payment.status}: ${payment.id}`);
+console.log(`Connection type: ${payment.connection_type}`); // "connect" or "api_key"
+```
+
+**That's it!** Your app now accepts payments with enterprise-grade reliability.
+
+## 🔑 Authentication Methods
+
+### Option A: Stripe Connect (Recommended)
+```typescript
+// 1. User clicks "Connect with Stripe"
+// 2. OAuth flow redirects to: /dashboard/payments/setup
+// 3. One-click authorization
+// 4. Ready to accept payments instantly!
+
+const payment = await client.payments.create({
+  amount: 5000,
+  currency: 'usd',
+  description: 'Order #123'
+});
+// Uses OAuth tokens automatically
+```
+
+### Option B: BYOK (Advanced)
+```typescript
+// 1. Get your Stripe secret key
+// 2. Store encrypted in OneRouter dashboard
+// 3. Same API, different auth method
+
+const payment = await client.payments.create({
+  amount: 5000,
+  currency: 'usd',
+  description: 'Order #123'
+});
+// Uses your encrypted API keys automatically
+```
+
+**Same code, different auth methods!** 🔄
+
+## 📚 Developer Guide
+
+### Installation
+
+```bash
+# npm
+npm install @OneRouter/sdk
+
+# yarn
+yarn add @OneRouter/sdk
+
+# pnpm
+pnpm add @OneRouter/sdk
+```
+
+### ESM Import (Recommended)
+```typescript
+import { UnifiedAPIClient } from '@OneRouter/sdk';
+```
+
+### CommonJS
+```javascript
+const { UnifiedAPIClient } = require('@OneRouter/sdk');
+```
+
+### Configuration
+
+```typescript
+interface ClientConfig {
+  apiKey: string;           // Your OneRouter API key (sk_...)
+  baseUrl?: string;         // API URL (auto-detected)
+  timeout?: number;         // Request timeout (default: 30s)
+  maxRetries?: number;      // Retry attempts (default: 3)
+  environment?: 'local' | 'staging' | 'production';
+}
+
+const client = new UnifiedAPIClient({
+  apiKey: 'sk_live_your_key_here',
+  // baseUrl: 'https://api.onerouter.com', // Optional
+});
+```
+
+## 💳 Payment Operations
+
+### Create Payment
+
+```typescript
+const payment = await client.payments.create({
+  amount: 25000,           // Amount in cents ($250.00)
+  currency: 'usd',         // 'usd', 'eur', 'gbp', etc.
+  description: 'Premium Plan', // Optional description
+  customer_email: 'user@company.com', // Optional
+  customer_name: 'John Doe', // Optional
+  metadata: {              // Optional custom data
+    user_id: '12345',
+    plan: 'premium'
+  }
+});
+
+// Response
+{
+  id: 'pi_stripe_payment_id',
+  amount: 25000,
+  currency: 'usd',
+  status: 'succeeded',     // 'succeeded', 'pending', 'failed'
+  provider: 'stripe',
+  connection_type: 'connect', // 'connect' or 'api_key'
+  client_secret: 'pi_xxx_secret_xxx', // For frontend confirmation
+  created_at: 1703123456   // Unix timestamp
+}
+```
+
+### Refund Payment
+
+```typescript
+// Full refund
+const refund = await client.payments.refund('pi_stripe_payment_id');
+
+// Partial refund
+const refund = await client.payments.refund('pi_stripe_payment_id', {
+  amount: 12500, // Refund $125.00
+  reason: 'requested_by_customer'
+});
+
+// Response
+{
+  id: 're_stripe_refund_id',
+  payment_id: 'pi_stripe_payment_id',
+  amount: 12500,
+  status: 'succeeded'
+}
+```
+
+### List Payments
+
+```typescript
+const { data, total, has_more } = await client.payments.list({
+  limit: 20,              // Max 100
+  offset: 0,              // Pagination
+  status: 'succeeded'     // Filter by status
+});
+
+// Response
+{
+  data: [/* PaymentRecord[] */],
+  total: 150,
+  has_more: true
+}
+```
+
+## 🔧 Advanced Features
+
+### Error Handling
+
+```typescript
+import {
+  UnifiedAPIError,
+  ValidationError,
+  PaymentError,
+  isOneRouterError
+} from '@OneRouter/sdk';
+
+try {
+  const payment = await client.payments.create({...});
+} catch (error) {
+  if (isOneRouterError(error)) {
+    console.log(`Error: ${error.message}`);
+    console.log(`Code: ${error.code}`);
+    console.log(`Status: ${error.statusCode}`);
+
+    // Handle specific errors
+    if (error instanceof PaymentError) {
+      // Payment processing failed
+    }
+  }
+}
+```
+
+### Health Checks
+
+```typescript
+// Basic health check
+const health = await client.health();
+console.log(`Status: ${health.status}`);
+
+// Comprehensive health check
+const detailed = await client.healthCheck();
+console.log(`API Latency: ${detailed.services.api.latency}ms`);
+```
+
+### Testing with Mocks
+
+```typescript
+import { UnifiedAPIClient } from '@OneRouter/sdk';
+
+// Create mock client
+const { client, mock } = UnifiedAPIClient.withMockTransport({
+  apiKey: 'test_key'
+});
+
+// Mock responses
+mock.onCreatePayment(async (body) => ({
+  id: 'pi_test_123',
+  amount: body.amount,
+  currency: body.currency,
+  status: 'succeeded',
+  provider: 'stripe',
+  connection_type: 'connect',
+  client_secret: 'pi_test_secret_xxx',
+  created_at: Math.floor(Date.now() / 1000)
+}));
+
+// Test your code
+const payment = await client.payments.create({
+  amount: 10000,
+  currency: 'usd',
+  description: 'Test payment'
+});
+
+expect(payment.status).toBe('succeeded');
+```
+
+## 🎭 Use Cases
+
+### E-commerce Platform
+```typescript
+// Handle payments for multiple vendors
+async function processOrder(order) {
+  const payment = await client.payments.create({
+    amount: order.total * 100, // Convert to cents
+    currency: 'usd',
+    description: `Order ${order.id}`,
+    customer_email: order.customer.email,
+    metadata: {
+      order_id: order.id,
+      vendor_id: order.vendor.id
+    }
+  });
+
+  // Update order status
+  await updateOrderStatus(order.id, payment.status);
+
+  return payment;
+}
+```
+
+### SaaS Subscription Billing
+```typescript
+// Handle recurring payments
+async function chargeSubscription(userId, plan) {
+  const payment = await client.payments.create({
+    amount: plan.price * 100,
+    currency: 'usd',
+    description: `${plan.name} subscription`,
+    customer_email: user.email,
+    metadata: {
+      user_id: userId,
+      plan_id: plan.id,
+      billing_cycle: 'monthly'
+    }
+  });
+
+  // Update subscription status
+  await updateSubscription(userId, {
+    status: 'active',
+    payment_id: payment.id
+  });
+
+  return payment;
+}
+```
+
+### Marketplace Payments
+```typescript
+// Split payments between platform and sellers
+async function processMarketplacePayment(order) {
+  // Platform fee: 5%
+  const platformFee = Math.round(order.total * 0.05 * 100);
+  const sellerAmount = (order.total * 100) - platformFee;
+
+  // Create payment (OneRouter handles splitting automatically)
+  const payment = await client.payments.create({
+    amount: order.total * 100,
+    currency: 'usd',
+    description: `Marketplace order ${order.id}`,
+    customer_email: order.buyer.email,
+    metadata: {
+      order_id: order.id,
+      seller_id: order.seller.id,
+      platform_fee: platformFee,
+      seller_amount: sellerAmount
+    }
+  });
+
+  return payment;
+}
+```
+
+## ⚠️ Limitations & Considerations
+
+### Current Limitations
+- **Single Provider**: Currently supports Stripe only (PayPal coming soon)
+- **USD Focus**: Optimized for USD transactions
+- **No Subscriptions**: Use Stripe's billing for recurring payments
+- **No Webhooks**: Webhook forwarding planned for future release
+
+### Best Practices
+- **Always handle errors**: Implement proper error handling
+- **Use idempotency keys**: For critical payment operations
+- **Validate amounts**: Ensure amounts are positive integers
+- **Store payment IDs**: Keep track of payment references
+- **Test thoroughly**: Use mock transport for testing
+
+### Rate Limits
+- **100 requests per minute** per API key
+- Automatic retry with exponential backoff
+- Rate limit errors include `retryAfter` field
+
+### Security
+- API keys are sensitive - store securely
+- Use HTTPS in production
+- Enable HMAC signing for additional security
+- Rotate API keys regularly
+
+## 🔧 Environment Setup
+
+### Local Development
+```bash
+# Start OneRouter stack
+docker-compose up
+
+# SDK auto-detects local environment
+const client = new UnifiedAPIClient({
+  apiKey: 'sk_test_your_key'
+});
+// Uses http://localhost:8000 automatically
+```
+
+### Production
+```typescript
+const client = new UnifiedAPIClient({
+  apiKey: process.env.ONEROUTER_API_KEY,
+  environment: 'production'
+});
+// Uses https://api.onerouter.com automatically
+```
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Run integration tests
+npm run test:integration
+
+# Type checking
+npm run typecheck
+```
+
+## 📊 Monitoring & Debugging
+
+### Request Metrics
+```typescript
+const metrics = client.getMetrics();
+const summary = metrics.getSummary();
+
+console.log(`Total requests: ${summary.total}`);
+console.log(`Success rate: ${(summary.successful / summary.total * 100).toFixed(1)}%`);
+```
+
+### Debug Mode
+```typescript
+// Enable detailed logging
+const client = new UnifiedAPIClient({
+  apiKey: 'sk_xxx',
+  // Add logging interceptor
+  requestInterceptors: [(req) => {
+    console.log(`${req.method} ${req.path}`);
+    return req;
+  }]
+});
+```
+
+## 🚀 Migration Guide
+
+### From Stripe SDK
+```typescript
+// Before (Stripe SDK)
+import Stripe from 'stripe';
+const stripe = new Stripe('sk_live_xxx');
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: 1000,
+  currency: 'usd'
+});
+
+// After (OneRouter SDK)
+import { UnifiedAPIClient } from '@OneRouter/sdk';
+const client = new UnifiedAPIClient({ apiKey: 'sk_your_onerouter_key' });
+const payment = await client.payments.create({
+  amount: 1000,
+  currency: 'usd'
+});
+```
+
+### From Other Payment SDKs
+```typescript
+// Same pattern for any payment provider
+const payment = await client.payments.create({
+  amount: amountInCents,
+  currency: 'usd',
+  description: 'Payment description'
+});
+// OneRouter handles the rest!
+```
+
+## 📞 Support
+
+- **Documentation**: https://docs.onerouter.com
+- **API Reference**: https://api.onerouter.com/docs
+- **GitHub Issues**: https://github.com/OneRouter/sdk/issues
+- **Discord Community**: https://discord.gg/onerouter
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ by the OneRouter team**
+
+*One API, All Payment Methods, Zero Hassle.*
 
 ## Installation
 

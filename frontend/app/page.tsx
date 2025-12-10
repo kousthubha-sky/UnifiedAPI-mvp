@@ -1,44 +1,58 @@
+'use client';
+
+import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import Features from '@/components/Features';
 import FeatureHighlights from '@/components/FeatureHighlights';
 import Pricing from '@/components/Pricing';
 import Testimonials from '@/components/Testimonials';
 import Link from 'next/link';
-import { SignUpButton } from '@clerk/nextjs';
+import { SignUpButton, useUser } from '@clerk/nextjs';
 
 export default function Home() {
+  const { isSignedIn } = useUser();
+
   return (
     <>
+      <Navbar />
       <Hero />
       <FeatureHighlights />
       <Features />
       <Pricing />
       <Testimonials />
-      
+
       {/* Final CTA Section */}
-      <section className="w-full py-20 md:py-28 bg-gradient-to-b from-black via-primary to-black text-black px-4">
+      <section className="w-full py-20 md:py-28 bg-black text-white px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6 font-mono">
-            Ready to Get <span className="text-white">Started</span>?
+            Ready to Get <span className="text-primary">Started</span>?
           </h2>
-          <p className="text-lg mb-8 text-black/80 max-w-2xl mx-auto font-mono">
-            Start processing payments securely today. Get your API keys in minutes 
+          <p className="text-lg mb-8 text-white/80 max-w-2xl mx-auto font-mono">
+            Start processing payments securely today. Get your API keys in minutes
             and integrate with just a few lines of code.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <SignUpButton>
-              <button className="inline-flex items-center justify-center px-8 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono">
-                Create Free Account
-              </button>
-            </SignUpButton>
+            {isSignedIn ? (
+              <Link href="/dashboard">
+                <button className="inline-flex items-center justify-center px-8 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono">
+                  Go to Dashboard
+                </button>
+              </Link>
+            ) : (
+              <SignUpButton>
+                <button className="inline-flex items-center justify-center px-8 py-3 bg-black text-primary font-bold rounded-lg hover:bg-gray-900 transition-colors font-mono">
+                  Create Free Account
+                </button>
+              </SignUpButton>
+            )}
             <Link
               href="/docs"
-              className="inline-flex items-center justify-center px-8 py-3 border-2 border-black text-black font-bold rounded-lg hover:bg-black hover:text-primary transition-colors font-mono"
+              className="inline-flex items-center justify-center px-8 py-3  text-white font-bold rounded-lg hover:bg-black hover:text-primary transition-colors font-mono"
             >
               Read Documentation
             </Link>
           </div>
-          <p className="text-black/70 text-sm mt-8 font-mono">
+          <p className="text-white/70 text-sm mt-8 font-mono">
             No credit card required • Free tier available • 5-minute setup
           </p>
         </div>
@@ -113,3 +127,4 @@ export default function Home() {
     </>
   );
 }
+

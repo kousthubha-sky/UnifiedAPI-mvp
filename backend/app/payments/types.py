@@ -30,7 +30,7 @@ class PaymentStatus(str, Enum):
 
 
 class CreatePaymentRequest(BaseModel):
-    """Request model for creating a payment."""
+    """Request model for creating a payment (SDK compatible)."""
 
     amount: int = Field(
         ...,
@@ -43,23 +43,17 @@ class CreatePaymentRequest(BaseModel):
         max_length=3,
         description="Three-letter ISO currency code (e.g., 'USD', 'EUR')",
     )
-    provider: PaymentProvider = Field(
-        ...,
-        description="Payment provider to use",
-    )
-    customer_id: str = Field(
-        ...,
-        min_length=1,
-        description="Customer identifier",
-    )
-    payment_method: str = Field(
-        ...,
-        min_length=1,
-        description="Payment method identifier (e.g., Stripe PaymentMethod ID)",
-    )
     description: str | None = Field(
         default=None,
         description="Optional description",
+    )
+    customer_email: str | None = Field(
+        default=None,
+        description="Optional customer email",
+    )
+    customer_name: str | None = Field(
+        default=None,
+        description="Optional customer name",
     )
     metadata: dict[str, Any] | None = Field(
         default=None,

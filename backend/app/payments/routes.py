@@ -127,7 +127,6 @@ async def create_payment(
 
     logger.info(
         "Creating payment",
-        provider=body.provider.value,
         amount=body.amount,
         currency=body.currency,
         has_idempotency_key=bool(idempotency_key),
@@ -326,50 +325,45 @@ async def get_payment(
     },
 )
 async def list_payments(
+    request: Request,
     service: PaymentServiceOptionalDep,
-    provider: Annotated[PaymentProvider | None, Query(description="Filter by provider")] = None,
     status: Annotated[PaymentStatus | None, Query(description="Filter by status")] = None,
-    customer_id: Annotated[str | None, Query(description="Filter by customer ID")] = None,
-    start_date: Annotated[str | None, Query(description="Filter by start date (ISO 8601)")] = None,
-    end_date: Annotated[str | None, Query(description="Filter by end date (ISO 8601)")] = None,
     limit: Annotated[int, Query(ge=1, le=100, description="Maximum results")] = 10,
     offset: Annotated[int, Query(ge=0, description="Results to skip")] = 0,
 ) -> ListPaymentsResponse:
-    """List payments with optional filters.
+    """List payments with optional filters (SDK compatible).
 
-    Supports filtering by provider, status, customer ID, and date range.
-    Results are paginated with configurable limit and offset.
+    Supports filtering by status with pagination.
+    Customer ID is automatically determined from authentication context.
 
     Args:
+        request: FastAPI request object.
         service: Payment service instance.
-        provider: Optional filter by payment provider.
         status: Optional filter by payment status.
-        customer_id: Optional filter by customer ID.
-        start_date: Optional filter by start date (inclusive).
-        end_date: Optional filter by end date (inclusive).
         limit: Maximum number of results (1-100, default 10).
         offset: Number of results to skip (default 0).
 
     Returns:
         ListPaymentsResponse with paginated results.
     """
+    # Get customer ID from auth context
+    customer_id = None
+    if hasattr(request.state, "auth") and request.state.auth:
+        customer_id = request.state.auth.customer_id
+
     logger.info(
         "Listing payments",
-        provider=provider.value if provider else None,
         status=status.value if status else None,
         customer_id=customer_id,
         limit=limit,
         offset=offset,
     )
 
-    request = ListPaymentsRequest(
-        provider=provider,
+    request_obj = ListPaymentsRequest(
         status=status,
         customer_id=customer_id,
-        start_date=start_date,
-        end_date=end_date,
         limit=limit,
         offset=offset,
     )
 
-    return await service.list_payments(request)
+    return await service.list_payments(request_obj)

@@ -141,33 +141,7 @@ export class PaymentsResource {
     );
   }
 
-  /**
-   * Get a single payment by ID
-   *
-   * @param paymentId - ID of the payment to retrieve
-   * @param options - Request options
-   * @returns Payment details
-   *
-   * @example
-   * ```typescript
-   * const payment = await client.payments.get('pay_123');
-   * ```
-   */
-  async get(
-    paymentId: string,
-    options?: RequestOptions
-  ): Promise<ListPaymentsResponse> {
-    if (!paymentId || typeof paymentId !== 'string') {
-      throw new ValidationError('Payment ID is required');
-    }
 
-    // Use list endpoint with payment ID filter
-    // Note: Backend may need a dedicated get endpoint
-    return this.list(
-      { customer_id: paymentId, limit: 1 },
-      options
-    );
-  }
 
   /**
    * Validate create payment request
@@ -214,20 +188,8 @@ export class PaymentsResource {
 
     const params = new URLSearchParams();
 
-    if (request.provider) {
-      params.set('provider', request.provider);
-    }
     if (request.status) {
       params.set('status', request.status);
-    }
-    if (request.customer_id) {
-      params.set('customer_id', request.customer_id);
-    }
-    if (request.start_date) {
-      params.set('start_date', request.start_date);
-    }
-    if (request.end_date) {
-      params.set('end_date', request.end_date);
     }
     if (request.limit !== undefined) {
       params.set('limit', String(request.limit));

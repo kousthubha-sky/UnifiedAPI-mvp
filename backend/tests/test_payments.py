@@ -363,15 +363,17 @@ class TestPaymentTypes:
         request = CreatePaymentRequest(
             amount=1000,
             currency="USD",
-            provider=PaymentProvider.STRIPE,
-            customer_id="cust_123",
-            payment_method="pm_card_visa",
             description="Test payment",
+            customer_email="test@example.com",
+            customer_name="Test User",
             metadata={"order_id": "order_123"},
         )
         assert request.amount == 1000
         assert request.currency == "USD"
-        assert request.provider == PaymentProvider.STRIPE
+        assert request.description == "Test payment"
+        assert request.customer_email == "test@example.com"
+        assert request.customer_name == "Test User"
+        assert request.metadata == {"order_id": "order_123"}
 
     def test_create_payment_request_invalid_amount(self) -> None:
         """Test CreatePaymentRequest with invalid amount."""

@@ -42,20 +42,6 @@ export type {
   ListPaymentsRequest,
   ListPaymentsResponse,
   PaymentRecord,
-  CustomerTier,
-  CreateCustomerRequest,
-  UpdateCustomerRequest,
-  CustomerResponse,
-  ListCustomersRequest,
-  ListCustomersResponse,
-  CreateApiKeyRequest,
-  UpdateApiKeyRequest,
-  ApiKeyResponse,
-  CreateApiKeyResponse,
-  RotateApiKeyResponse,
-  ListApiKeysResponse,
-  DeleteApiKeyResponse,
-  RevokeApiKeyResponse,
   HealthResponse,
   HealthCheckResult,
   RequestMetrics,
@@ -98,5 +84,4 @@ export { MetricsCollector } from './metrics.js';
 
 // Resources (for advanced typing)
 export { PaymentsResource } from './resources/payments.js';
-export { CustomersResource } from './resources/customers.js';
-export { ApiKeysResource } from './resources/api_keys.js';
+

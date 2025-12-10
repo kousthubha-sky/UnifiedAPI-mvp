@@ -54,8 +54,7 @@ export type PaymentProvider = 'stripe' | 'paypal';
 // Payment Status Types
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'processing';
 
-// Customer Types
-export type CustomerTier = 'starter' | 'growth' | 'scale' | 'admin';
+
 
 // Payment Request/Response Types
 export interface CreatePaymentRequest {
@@ -87,7 +86,7 @@ export interface CreatePaymentResponse {
   /** Payment status */
   status: PaymentStatus;
   /** Creation timestamp */
-  created_at: string;
+  created_at: number;
   /** Request trace ID */
   trace_id?: string;
   /** Custom metadata */
@@ -113,7 +112,7 @@ export interface RefundPaymentResponse {
   /** Refund status */
   status: PaymentStatus;
   /** Creation timestamp */
-  created_at: string;
+  created_at: number;
   /** Request trace ID */
   trace_id?: string;
   /** Provider-specific metadata */
@@ -158,12 +157,12 @@ export interface PaymentRecord {
   refund_id: string | null;
   /** Refund status (nullable) */
   refund_status: string | null;
-  /** Refund amount (nullable) */
-  refund_amount: number | null;
-  /** Creation timestamp */
-  created_at: string;
-  /** Last update timestamp */
-  updated_at: string;
+   /** Refund amount (nullable) */
+   refund_amount: number | null;
+   /** Creation timestamp */
+   created_at: number;
+   /** Last update timestamp */
+   updated_at: number;
 }
 
 export interface ListPaymentsResponse {
@@ -180,16 +179,6 @@ export interface ListPaymentsResponse {
 }
 
 // Error Types
-export interface APIErrorResponse {
-  /** Error message */
-  error: string;
-  /** Error code */
-  code: string;
-  /** Additional error details */
-  details?: Record<string, unknown>;
-  /** Request trace ID */
-  trace_id?: string;
-}
 
 // Error Codes from the backend
 export enum ErrorCode {
@@ -208,158 +197,7 @@ export enum ErrorCode {
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
 }
 
-// Customer Request/Response Types
-export interface CreateCustomerRequest {
-  /** Customer's email address */
-  email: string;
-  /** Customer tier */
-  tier?: CustomerTier;
-  /** Optional Stripe connected account ID */
-  stripe_account_id?: string;
-  /** Optional PayPal merchant ID */
-  paypal_account_id?: string;
-}
 
-export interface UpdateCustomerRequest {
-  /** New email address */
-  email?: string;
-  /** New tier */
-  tier?: CustomerTier;
-  /** Stripe connected account ID */
-  stripe_account_id?: string;
-  /** PayPal merchant ID */
-  paypal_account_id?: string;
-}
-
-export interface CustomerResponse {
-  /** Customer UUID */
-  id: string;
-  /** Customer email */
-  email: string;
-  /** Customer tier */
-  tier: string;
-  /** Stripe connected account ID */
-  stripe_account_id?: string;
-  /** PayPal merchant ID */
-  paypal_account_id?: string;
-  /** Creation timestamp */
-  created_at: string;
-  /** Last update timestamp */
-  updated_at: string;
-  /** Request trace ID */
-  trace_id?: string;
-}
-
-export interface ListCustomersRequest {
-  /** Maximum results to return (default: 10, max: 100) */
-  limit?: number;
-  /** Number of results to skip */
-  offset?: number;
-}
-
-export interface ListCustomersResponse {
-  /** Array of customer records */
-  customers: CustomerResponse[];
-  /** Total count of matching records */
-  total: number;
-  /** Current limit */
-  limit: number;
-  /** Current offset */
-  offset: number;
-  /** Request trace ID */
-  trace_id?: string;
-}
-
-// API Key Types
-export type ApiKeyAction = 'revoke' | 'rotate';
-
-export interface CreateApiKeyRequest {
-  /** Optional name for the API key */
-  name?: string;
-  /** Customer ID (required when using bootstrap key) */
-  customer_id?: string;
-}
-
-export interface UpdateApiKeyRequest {
-  /** Action to perform */
-  action: ApiKeyAction;
-  /** New name for the API key (optional) */
-  name?: string;
-}
-
-export interface ApiKeyResponse {
-  /** API key UUID */
-  id: string;
-  /** API key name */
-  name?: string;
-  /** Whether the key is active */
-  is_active: boolean;
-  /** Last used timestamp */
-  last_used_at?: string;
-  /** Creation timestamp */
-  created_at: string;
-  /** Request trace ID */
-  trace_id?: string;
-}
-
-export interface CreateApiKeyResponse {
-  /** API key UUID */
-  id: string;
-  /** The API key (only shown once) */
-  key: string;
-  /** API key name */
-  name?: string;
-  /** Whether the key is active */
-  is_active: boolean;
-  /** Creation timestamp */
-  created_at: string;
-  /** Request trace ID */
-  trace_id?: string;
-}
-
-export interface RotateApiKeyResponse {
-  /** API key UUID */
-  id: string;
-  /** The new API key (only shown once) */
-  key: string;
-  /** API key name */
-  name?: string;
-  /** Whether the key is active */
-  is_active: boolean;
-  /** Creation timestamp */
-  created_at: string;
-  /** Request trace ID */
-  trace_id?: string;
-  /** Status message */
-  message: string;
-}
-
-export interface ListApiKeysResponse {
-  /** List of API keys */
-  keys: ApiKeyResponse[];
-  /** Total count of keys */
-  total: number;
-  /** Request trace ID */
-  trace_id?: string;
-}
-
-export interface DeleteApiKeyResponse {
-  /** Success message */
-  message: string;
-  /** Request trace ID */
-  trace_id?: string;
-}
-
-export interface RevokeApiKeyResponse {
-  /** API key UUID */
-  id: string;
-  /** Key is now inactive */
-  is_active: boolean;
-  /** Status message */
-  message: string;
-  /** Request trace ID */
-  trace_id?: string;
-}
 
 // Health Check Types
 export interface HealthResponse {
@@ -404,9 +242,160 @@ export interface HealthCheckResult {
     auth: { status: 'ok' | 'error'; latency: number; error?: string };
     /** Payments service check */
     payments?: { status: 'ok' | 'error'; latency: number; error?: string };
-    /** Customers service check */
-    customers?: { status: 'ok' | 'error'; latency: number; error?: string };
   };
+}
+
+export interface RequestOptions {
+  /** Idempotency key for safe retries */
+  idempotencyKey?: string;
+  /** Custom timeout for this request */
+  timeout?: number;
+  /** Additional headers */
+  headers?: Record<string, string>;
+  /** Skip retries for this request */
+  skipRetry?: boolean;
+  /** Skip response caching for this request */
+  skipCache?: boolean;
+}
+
+// Connection Types (for hybrid Connect + BYOK)
+export type ConnectionType = 'connect' | 'api_key';
+
+// Payment Request/Response Types
+export interface CreatePaymentRequest {
+  /** Amount in cents (e.g., 1000 = $10.00) */
+  amount: number;
+  /** Three-letter ISO currency code (e.g., 'usd', 'eur') */
+  currency: string;
+  /** Optional description */
+  description?: string;
+  /** Optional customer email */
+  customer_email?: string;
+  /** Optional customer name */
+  customer_name?: string;
+  /** Optional metadata */
+  metadata?: Record<string, unknown>;
+}
+
+export interface CreatePaymentResponse {
+  /** Payment ID (Stripe format: pi_...) */
+  id: string;
+  /** Payment amount in cents */
+  amount: number;
+  /** Currency code */
+  currency: string;
+  /** Payment status */
+  status: PaymentStatus;
+  /** Payment provider (always 'stripe' for now) */
+  provider: PaymentProvider;
+  /** Connection type used ('connect' or 'api_key') */
+  connection_type: ConnectionType;
+  /** Client secret for frontend payment confirmation */
+  client_secret: string;
+  /** Creation timestamp (Unix timestamp) */
+  created_at: number;
+}
+
+export interface RefundPaymentRequest {
+  /** Optional partial refund amount in cents (defaults to full refund) */
+  amount?: number;
+  /** Reason for refund */
+  reason?: string;
+}
+
+export interface RefundPaymentResponse {
+  /** Refund ID (Stripe format: re_...) */
+  id: string;
+  /** Original payment ID */
+  payment_id: string;
+  /** Refunded amount in cents */
+  amount: number;
+  /** Refund status */
+  status: PaymentStatus;
+}
+
+export interface ListPaymentsRequest {
+  /** Maximum results to return (default: 10) */
+  limit?: number;
+  /** Number of results to skip */
+  offset?: number;
+  /** Filter by status */
+  status?: PaymentStatus;
+}
+
+export interface PaymentRecord {
+  /** Payment ID */
+  id: string;
+  /** Payment amount in cents */
+  amount: number;
+  /** Currency code */
+  currency: string;
+  /** Payment status */
+  status: PaymentStatus;
+  /** Payment provider */
+  provider: PaymentProvider;
+  /** Connection type used */
+  connection_type: ConnectionType;
+  /** Creation timestamp (Unix timestamp) */
+  created_at: number;
+}
+
+export interface ListPaymentsResponse {
+  /** Array of payment records */
+  data: PaymentRecord[];
+  /** Total count of matching records */
+  total: number;
+  /** Whether there are more results */
+  has_more: boolean;
+}
+
+// Error Types
+export interface APIErrorResponse {
+  /** Error message (new format) */
+  detail?: string;
+  /** Error message (old format) */
+  error?: string;
+  /** Error code (old format) */
+  code?: string;
+  /** Additional error details (old format) */
+  details?: Record<string, unknown>;
+  /** Additional error details (new format) */
+  errors?: Record<string, unknown>;
+  /** Request trace ID */
+  trace_id?: string;
+}
+
+
+
+
+// Health Check Types
+export interface HealthResponse {
+  /** Server status */
+  status: string;
+  /** Current timestamp */
+  timestamp: string;
+  /** API version */
+  version?: string;
+}
+
+// Metrics Types
+export interface RequestMetrics {
+  /** HTTP method */
+  method: string;
+  /** Request path */
+  path: string;
+  /** Request duration in milliseconds */
+  duration: number;
+  /** HTTP status code */
+  statusCode: number;
+  /** Whether the request was successful */
+  success: boolean;
+  /** Timestamp of the request */
+  timestamp: number;
+  /** Environment tag */
+  environment: Environment;
+  /** Request trace ID */
+  traceId?: string;
 }
 
 // Interceptor Types

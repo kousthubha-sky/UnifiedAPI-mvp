@@ -34,32 +34,28 @@ describe('Health Monitoring', () => {
 
     it('should return comprehensive health check results', async () => {
       const healthResponse = { status: 'healthy', timestamp: '2024-01-01T00:00:00Z' };
-      const customersResponse = { customers: [], total: 0, limit: 10, offset: 0 };
 
       mock.onHealth(async () => healthResponse);
-      mock.onListCustomers(async () => customersResponse);
 
       const result = await client.healthCheck();
 
       expect(result.status).toBe('healthy');
       expect(result.services.api.status).toBe('ok');
       expect(result.services.auth.status).toBe('ok');
-      expect(result.services.customers?.status).toBe('ok');
       expect(typeof result.latency).toBe('number');
       expect(result.latency).toBeGreaterThanOrEqual(0);
     });
 
     it('should mark overall status as unhealthy if any service fails', async () => {
-      mock.onHealth(async () => ({ status: 'healthy', timestamp: '2024-01-01T00:00:00Z' }));
-      mock.onListCustomers(async () => {
+      mock.onHealth(async () => {
         throw new Error('Service unavailable');
       });
 
       const result = await client.healthCheck();
 
       expect(result.status).toBe('unhealthy');
-      expect(result.services.customers?.status).toBe('error');
-      expect(result.services.customers?.error).toBe('Service unavailable');
+      expect(result.services.api.status).toBe('error');
+      expect(result.services.api.error).toBe('Service unavailable');
     });
 
     it('should handle network errors gracefully', async () => {

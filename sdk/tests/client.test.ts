@@ -411,29 +411,30 @@ describe('PaymentsResource', () => {
       });
 
       const requestPath = mock.getRequests()[0].path;
-      expect(requestPath).toContain('provider=stripe');
       expect(requestPath).toContain('status=completed');
-      expect(requestPath).toContain('customer_id=cust_123');
       expect(requestPath).toContain('limit=20');
       expect(requestPath).toContain('offset=10');
     });
 
-    it('should list payments with date range', async () => {
+    it('should list payments with pagination', async () => {
+      const { client, mock } = UnifiedAPIClient.withMockTransport({
+        apiKey: 'sk_test_123',
+      });
+
       mock.onListPayments(async () => ({
-        payments: [],
+        data: [],
         total: 0,
-        limit: 10,
-        offset: 0,
+        has_more: false,
       }));
 
       await client.payments.list({
-        start_date: '2024-01-01',
-        end_date: '2024-12-31',
+        limit: 50,
+        offset: 100,
       });
 
       const requestPath = mock.getRequests()[0].path;
-      expect(requestPath).toContain('start_date=2024-01-01');
-      expect(requestPath).toContain('end_date=2024-12-31');
+      expect(requestPath).toContain('limit=50');
+      expect(requestPath).toContain('offset=100');
     });
   });
 });

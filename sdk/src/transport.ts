@@ -407,10 +407,8 @@ export class HttpTransport implements Transport {
         const errorResponse = responseData as APIErrorResponse;
         throw OneRouterError.fromResponse(
           {
-            error: errorResponse.error || `HTTP ${response.status}`,
-            code: errorResponse.code || 'UNKNOWN_ERROR',
-            details: errorResponse.details,
-            trace_id: errorResponse.trace_id || traceId,
+            detail: errorResponse.detail || errorResponse.error || `HTTP ${response.status}`,
+            errors: errorResponse.errors || errorResponse.details,
           },
           response.status
         );

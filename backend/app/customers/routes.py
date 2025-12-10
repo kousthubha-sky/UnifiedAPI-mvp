@@ -5,6 +5,7 @@ Provides the REST API endpoints for customer management.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,6 +31,9 @@ from app.models import (
 logger = get_logger("customers.routes")
 
 router = APIRouter(prefix="/api/v1/customers", tags=["customers"])
+
+# Simple in-memory store for OAuth state (use Redis in production)
+_oauth_states: dict[str, dict[str, Any]] = {}
 
 
 def _get_optional_supabase() -> Any:
@@ -393,6 +397,181 @@ async def delete_customer(
             message="Failed to delete customer",
             details={"error": str(e)},
         ) from e
+
+
+@router.get(
+    "/oauth/stripe/connect",
+    summary="Initiate Stripe Connect OAuth",
+    description="Redirect to Stripe Connect OAuth flow",
+)
+async def initiate_stripe_connect(
+    request: Request,
+) -> Response:
+    """Initiate Stripe Connect OAuth flow.
+
+    Args:
+        request: FastAPI request object.
+    """
+    import secrets
+    from urllib.parse import urlencode
+
+    auth_ctx = get_auth_context(request)
+    customer_id = auth_ctx.customer_id
+
+    # Generate a state parameter for CSRF protection
+    state = secrets.token_urlsafe(32)
+
+    # Store state in session/cache (simplified - in production use Redis/session)
+    _oauth_states[state] = {
+        'customer_id': customer_id,
+        'provider': 'stripe',
+        'timestamp': datetime.now(UTC).isoformat()
+    }
+
+    # Stripe Connect OAuth parameters
+    params = {
+        'response_type': 'code',
+        'client_id': os.getenv('STRIPE_CONNECT_CLIENT_ID', 'ca_test_client_id'),  # Use test client ID
+        'scope': 'read_write',
+        'redirect_uri': f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup/callback",
+        'state': state,
+    }
+
+    stripe_oauth_url = f"https://connect.stripe.com/oauth/authorize?{urlencode(params)}"
+
+    logger.info(
+        "Initiating Stripe Connect OAuth",
+        customer_id=customer_id,
+        state=state,
+    )
+
+    # Redirect to Stripe OAuth
+    return Response(
+        status_code=302,
+        headers={"Location": stripe_oauth_url}
+    )
+
+
+@router.get(
+    "/oauth/stripe/callback",
+    summary="Handle Stripe Connect OAuth callback",
+    description="Handle the callback from Stripe Connect OAuth",
+)
+async def handle_stripe_connect_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    error_description: str | None = None,
+) -> Response:
+    """Handle Stripe Connect OAuth callback.
+
+    Args:
+        request: FastAPI request object.
+        code: Authorization code from Stripe.
+        state: State parameter for CSRF protection.
+        error: Error from Stripe OAuth.
+        error_description: Error description from Stripe OAuth.
+    """
+    import httpx
+
+    # Check for OAuth errors
+    if error:
+        logger.error(
+            "Stripe Connect OAuth error",
+            error=error,
+            error_description=error_description,
+        )
+        return Response(
+            status_code=302,
+            headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error={error}"}
+        )
+
+    if not code or not state:
+        logger.error("Missing code or state in Stripe Connect callback")
+        return Response(
+            status_code=302,
+            headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error=missing_params"}
+        )
+
+    # Verify state (simplified - in production use Redis/session)
+    state_data = _oauth_states.get(state)
+    if not state_data:
+        logger.error("Invalid state parameter in Stripe Connect callback")
+        return Response(
+            status_code=302,
+            headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error=invalid_state"}
+        )
+
+    customer_id = state_data['customer_id']
+
+    # Clean up state
+    del _oauth_states[state]
+
+    try:
+        # Exchange authorization code for access token
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://connect.stripe.com/oauth/token",
+                data={
+                    'client_secret': os.getenv('STRIPE_SECRET_KEY', 'sk_test_key'),
+                    'code': code,
+                    'grant_type': 'authorization_code',
+                }
+            )
+
+            if response.status_code != 200:
+                logger.error(
+                    "Failed to exchange Stripe Connect code for token",
+                    status_code=response.status_code,
+                    response=response.text,
+                )
+                return Response(
+                    status_code=302,
+                    headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error=token_exchange_failed"}
+                )
+
+            token_data = response.json()
+            stripe_account_id = token_data.get('stripe_user_id')
+
+            if not stripe_account_id:
+                logger.error("No stripe_user_id in token response")
+                return Response(
+                    status_code=302,
+                    headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error=no_account_id"}
+                )
+
+            # Update customer with Stripe account ID
+            supabase = get_supabase(request)
+            update_response = supabase.table("customers").update({
+                "stripe_account_id": stripe_account_id,
+                "updated_at": datetime.now(UTC).isoformat()
+            }).eq("id", customer_id).execute()
+
+            if not update_response.data or len(update_response.data) == 0:
+                logger.error("Failed to update customer with Stripe account ID")
+                return Response(
+                    status_code=302,
+                    headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error=update_failed"}
+                )
+
+            logger.info(
+                "Stripe Connect OAuth completed successfully",
+                customer_id=customer_id,
+                stripe_account_id=stripe_account_id,
+            )
+
+            return Response(
+                status_code=302,
+                headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?success=true"}
+            )
+
+    except Exception as e:
+        logger.error("Stripe Connect OAuth callback error", error=str(e))
+        return Response(
+            status_code=302,
+            headers={"Location": f"{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/setup?error=server_error"}
+        )
 
 
 def _can_access_customer(auth_ctx: AuthContext, customer_id: str) -> bool:

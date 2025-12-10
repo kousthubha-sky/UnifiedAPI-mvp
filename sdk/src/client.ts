@@ -13,8 +13,7 @@ import {
 } from './types.js';
 import { HttpTransport, MockTransport } from './transport.js';
 import { PaymentsResource } from './resources/payments.js';
-import { CustomersResource } from './resources/customers.js';
-import { ApiKeysResource } from './resources/api_keys.js';
+
 import { ValidationError } from './errors.js';
 import { mergeConfig, validateApiKey } from './config.js';
 
@@ -58,17 +57,7 @@ const DEFAULT_CONFIG: Partial<ClientConfig> = {
  *   limit: 10
  * });
  *
- * // Create a customer
- * const customer = await client.customers.create({
- *   email: 'user@example.com',
- *   tier: 'starter'
- * });
- *
- * // Create an API key
- * const apiKey = await client.apiKeys.create({
- *   name: 'My App',
- *   customer_id: customer.id
- * });
+
  *
  * // Check server health
  * const health = await client.health();
@@ -80,15 +69,7 @@ export class UnifiedAPIClient {
    */
   public readonly payments: PaymentsResource;
 
-  /**
-   * Customers resource for managing customer accounts
-   */
-  public readonly customers: CustomersResource;
 
-  /**
-   * API Keys resource for managing API keys
-   */
-  public readonly apiKeys: ApiKeysResource;
 
   /**
    * The transport layer used for HTTP requests
@@ -115,24 +96,22 @@ export class UnifiedAPIClient {
    */
   constructor(config: ClientConfig, transport: Transport);
   constructor(config: ClientConfig, transport?: Transport) {
-     // Validate API key
-     try {
-       validateApiKey(config.apiKey);
-     } catch (error) {
-       throw new ValidationError(error instanceof Error ? error.message : 'Invalid API key');
-     }
+      // Validate API key
+      try {
+        validateApiKey(config.apiKey);
+      } catch (error) {
+        throw new ValidationError(error instanceof Error ? error.message : 'Invalid API key');
+      }
 
-     // Merge configuration with environment-aware defaults
-     this.config = mergeConfig(config);
+      // Merge configuration with environment-aware defaults
+      this.config = mergeConfig(config);
 
-     // Use provided transport or create HTTP transport
-     this.transport = transport || new HttpTransport(this.config);
+      // Use provided transport or create HTTP transport
+      this.transport = transport || new HttpTransport(this.config);
 
-     // Initialize resources
-     this.payments = new PaymentsResource(this.transport);
-     this.customers = new CustomersResource(this.transport);
-     this.apiKeys = new ApiKeysResource(this.transport);
-   }
+      // Initialize resources
+      this.payments = new PaymentsResource(this.transport);
+    }
 
   /**
    * Get the configured base URL
@@ -162,25 +141,22 @@ export class UnifiedAPIClient {
    *
    * // Set up mock responses
    * mock.onCreatePayment(async (body) => ({
-   *   id: 'pay_mock_123',
-   *   provider_transaction_id: 'pi_mock_123',
+   *   id: 'pi_test_123',
    *   amount: (body as any).amount,
    *   currency: (body as any).currency,
-   *   status: 'completed',
-   *   created_at: new Date().toISOString()
+   *   status: 'succeeded',
+   *   provider: 'stripe',
+   *   connection_type: 'connect',
+   *   client_secret: 'pi_test_secret_...',
+   *   created_at: Math.floor(Date.now() / 1000)
    * }));
    *
    * // Use client normally
    * const payment = await client.payments.create({
-   *   amount: 1000,
-   *   currency: 'USD',
-   *   provider: 'stripe',
-   *   customer_id: 'cust_123',
-   *   payment_method: 'pm_visa'
+   *   amount: 10000,
+   *   currency: 'usd',
+   *   description: 'Test payment'
    * });
-   *
-   * // Check logged requests
-   * console.log(mock.getRequests());
    * ```
    */
   static withMockTransport(
@@ -191,8 +167,12 @@ export class UnifiedAPIClient {
     return { client, mock };
   }
 
+
+
+
+
   /**
-   * Create a client with default configuration for development
+   * Create a client configured for development
    *
    * @param apiKey - API key for authentication
    * @returns UnifiedAPIClient configured for local development
@@ -207,6 +187,45 @@ export class UnifiedAPIClient {
       apiKey,
       environment: 'local',
     });
+  }
+
+  /**
+   * Create a client configured for production
+   *
+   * @param apiKey - API key for authentication
+   * @param baseUrl - Production API URL (optional, uses environment default)
+   * @returns UnifiedAPIClient configured for production
+   *
+   * @example
+   * ```typescript
+   * const client = UnifiedAPIClient.forProduction('sk_live_xxx');
+   * ```
+   */
+  static forProduction(apiKey: string, baseUrl?: string): UnifiedAPIClient {
+    return new UnifiedAPIClient({
+      apiKey,
+      baseUrl,
+      environment: 'production',
+    });
+  }
+
+  /**
+   * Get request metrics
+   *
+   * @returns Metrics collector instance
+   *
+   * @example
+   * ```typescript
+   * const metrics = client.getMetrics();
+   * const summary = metrics.getSummary();
+   * console.log(`Total requests: ${summary.total}, Success rate: ${summary.successful / summary.total * 100}%`);
+   * ```
+   */
+  getMetrics() {
+    if (this.transport instanceof HttpTransport) {
+      return this.transport.getMetricsCollector();
+    }
+    throw new Error('Metrics are only available for HTTP transport');
   }
 
 
@@ -309,27 +328,7 @@ export class UnifiedAPIClient {
         results.status = 'unhealthy';
       }
 
-      // Optional: Check customers service
-      try {
-        const customersStart = Date.now();
-        await this.transport.request(
-          'GET',
-          '/api/v1/customers',
-          undefined,
-          { ...options, skipRetry: true, timeout: 5000, headers: { 'X-Test-Service': 'true' } }
-        );
-        results.services.customers = {
-          status: 'ok',
-          latency: Date.now() - customersStart,
-        };
-      } catch (error) {
-        results.services.customers = {
-          status: 'error',
-          latency: 0,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        };
-        results.status = 'unhealthy';
-      }
+
 
     } catch (error) {
       results.status = 'unhealthy';
@@ -344,42 +343,7 @@ export class UnifiedAPIClient {
     return results;
   }
 
-  /**
-   * Get request metrics
-   *
-   * @returns Metrics collector instance
-   *
-   * @example
-   * ```typescript
-   * const metrics = client.getMetrics();
-   * const summary = metrics.getSummary();
-   * console.log(`Total requests: ${summary.total}, Success rate: ${summary.successful / summary.total * 100}%`);
-   * ```
-   */
-  getMetrics() {
-    if (this.transport instanceof HttpTransport) {
-      return this.transport.getMetricsCollector();
-    }
-    throw new Error('Metrics are only available for HTTP transport');
-  }
 
-  /**
-   * Create a client configured for production
-   *
-   * @param apiKey - API key for authentication
-   * @param baseUrl - Production API URL (optional, uses environment default)
-   * @returns UnifiedAPIClient configured for production
-   *
-   * @example
-   * ```typescript
-   * const client = UnifiedAPIClient.forProduction('sk_live_xxx');
-   * ```
-   */
-  static forProduction(apiKey: string, baseUrl?: string): UnifiedAPIClient {
-    return new UnifiedAPIClient({
-      apiKey,
-      baseUrl,
-      environment: 'production',
-    });
-  }
+
+
 }

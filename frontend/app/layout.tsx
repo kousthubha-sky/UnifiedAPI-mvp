@@ -1,25 +1,14 @@
-import type { Metadata, Viewport } from 'next';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/Navbar';
-import { AuthProvider } from '@/lib/auth-context';
-import PaymentErrorBoundary from '@/components/PaymentErrorBoundary';
 import { ClerkProvider } from '@clerk/nextjs';
+import { AuthProvider } from '@/lib/auth-context';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'OneRouter - Unified Payment Processing',
-  description: 'Accept payments with confidence using our unified payment API. Integrate Stripe, PayPal, and more through a single, secure endpoint.',
-  keywords: ['payment api', 'payment processing', 'stripe integration', 'paypal integration', 'unified api'],
-  authors: [{ name: 'OneRouter Team' }],
-  openGraph: {
-    title: 'OneRouter - Unified Payment Processing',
-    description: 'Accept payments with confidence using our unified payment API.',
-    type: 'website',
-  },
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
+  title: 'OneRouter - Payment Integration Platform',
+  description: 'Connect your payment providers in seconds',
 };
 
 export default function RootLayout({
@@ -29,6 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/dashboard"
       appearance={{
         baseTheme: undefined,
         variables: {
@@ -58,19 +49,13 @@ export default function RootLayout({
           alertText: 'text-red-400',
           userPreviewTextContainer: 'text-black',
           profileSectionHeader: 'text-black font-bold',
-          // pageScrollBox: 'bg-[#1a1a1a]',
-                
-         
         }
       }}
     >
       <html lang="en">
-        <body className="bg-white text-gray-900">
+        <body className={inter.className}>
           <AuthProvider>
-            <Navbar />
-            <PaymentErrorBoundary>
-              <main>{children}</main>
-            </PaymentErrorBoundary>
+            {children}
           </AuthProvider>
         </body>
       </html>

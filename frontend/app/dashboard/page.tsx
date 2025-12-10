@@ -1,59 +1,87 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth, type ApiKey } from '@/lib/auth-context';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useAuth, ApiKey } from '@/lib/auth-context';
 import { useMetrics } from '@/lib/use-metrics';
-import { getHealthCheck, type HealthCheckResult } from '@/lib/api';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import Alert from '@/components/ui/Alert';
 import EmptyState from '@/components/ui/EmptyState';
-import Tabs, { type Tab } from '@/components/ui/Tabs';
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import PaymentStatus from '@/components/PaymentStatus';
 
-export const dynamic = 'force-dynamic';
+interface Payment {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  description?: string;
+  customer_email?: string;
+  customer_name?: string;
+  provider: string;
+  created_at: string;
+}
 
-const tabs: Tab[] = [
-  { id: 'api-keys', label: 'API Keys', icon: '🔑' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
-  { id: 'usage', label: 'Usage Analytics', icon: '📊' },
-  { id: 'health', label: 'System Health', icon: '💚' },
-];
+interface HealthCheckResult {
+  status: 'healthy' | 'unhealthy';
+  latency?: number;
+  error?: string;
+  services?: {
+    api?: { status: 'ok' | 'error' };
+    auth?: { status: 'ok' | 'error' };
+    payments?: { status: 'ok' | 'error' };
+    customers?: { status: 'ok' | 'error' };
+  };
+}
 
-export default function Dashboard() {
-  const router = useRouter();
-  const { 
-    user, 
-    session,
-    customer, 
-    apiKeys, 
-    loading: authLoading,
-    generateApiKey,
-    revokeApiKey,
-    deleteApiKey,
-    updateCustomer,
-    signOut,
-  } = useAuth();
-  const { metrics, loading: metricsLoading } = useMetrics(session?.access_token ?? null);
+export default function DashboardPage() {
+  const { user, customer, apiKeys, generateApiKey, revokeApiKey, deleteApiKey, updateCustomer } = useAuth();
+  const { metrics, loading: metricsLoading } = useMetrics(user?.id || null);
 
-  const [activeTab, setActiveTab] = useState('api-keys');
-  const [healthCheck, setHealthCheck] = useState<HealthCheckResult | null>(null);
-  const [healthLoading, setHealthLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [newKeyName, setNewKeyName] = useState('');
-  const [newKey, setNewKey] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('payments');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // API Keys state
+  const [newKeyName, setNewKeyName] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [newKey, setNewKey] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Settings form state
-  const [stripeAccountId, setStripeAccountId] = useState('');
-  const [paypalAccountId, setPaypalAccountId] = useState('');
+  // Settings state
+  const [stripeAccountId, setStripeAccountId] = useState(customer?.stripe_account_id || '');
+  const [paypalAccountId, setPaypalAccountId] = useState(customer?.paypal_account_id || '');
   const [saving, setSaving] = useState(false);
 
-  // Clerk handles authentication redirects
+  // Health check state
+  const [healthCheck, setHealthCheck] = useState<HealthCheckResult | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
+  // Payments state
+  const [paymentStats, setPaymentStats] = useState({
+    totalPayments: 0,
+    totalAmount: 0,
+    successRate: 0,
+    recentPayments: [] as Payment[],
+  });
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+
+  const tabs = [
+    { id: 'payments', label: 'Payments' },
+    { id: 'api-keys', label: 'API Keys' },
+    { id: 'settings', label: 'Settings' },
+    { id: 'usage', label: 'Usage' },
+    { id: 'health', label: 'Health' },
+  ];
+
+  useEffect(() => {
+    if (activeTab === 'payments') {
+      fetchPaymentStats();
+    }
+  }, [activeTab]);
+
+  // Update settings when customer changes
   useEffect(() => {
     if (customer) {
       setStripeAccountId(customer.stripe_account_id || '');
@@ -61,57 +89,90 @@ export default function Dashboard() {
     }
   }, [customer]);
 
+  const fetchPaymentStats = async () => {
+    setPaymentsLoading(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/payments?limit=10`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('clerk-db-jwt') || ''}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        setPaymentStats({
+          totalPayments: data.data.total || 0,
+          totalAmount: calculateTotal(data.data.data || []),
+          successRate: calculateSuccessRate(data.data.data || []),
+          recentPayments: data.data.data || [],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment stats:', error);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
+  const calculateTotal = (payments: Payment[]) => {
+    return payments.reduce((sum, p) => sum + p.amount, 0);
+  };
+
+  const calculateSuccessRate = (payments: Payment[]) => {
+    if (payments.length === 0) return 0;
+    const succeeded = payments.filter((p) => p.status === 'succeeded').length;
+    return Math.round((succeeded / payments.length) * 100);
+  };
+
+  // API Key handlers
   const handleGenerateKey = async () => {
     setGenerating(true);
     setError(null);
     setSuccess(null);
-    setNewKey(null);
 
     const { key, error } = await generateApiKey(newKeyName || undefined);
-    
     if (error) {
       setError(error);
     } else if (key) {
       setNewKey(key);
-      setSuccess('API key generated successfully! Copy it now - you won\'t be able to see it again.');
+      setSuccess('API key generated successfully!');
       setNewKeyName('');
     }
-    
     setGenerating(false);
   };
 
-  const handleRevokeKey = async (id: string) => {
-    if (!confirm('Are you sure you want to revoke this API key? This action cannot be undone.')) {
-      return;
+  const handleCopyKey = async (key: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
+  };
 
+  const handleRevokeKey = async (id: string) => {
     const { error } = await revokeApiKey(id);
     if (error) {
       setError(error);
     } else {
-      setSuccess('API key revoked successfully');
+      setSuccess('API key revoked successfully!');
     }
   };
 
   const handleDeleteKey = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
-      return;
-    }
-
     const { error } = await deleteApiKey(id);
     if (error) {
       setError(error);
     } else {
-      setSuccess('API key deleted successfully');
+      setSuccess('API key deleted successfully!');
     }
   };
 
-  const handleCopyKey = (key: string, id: string) => {
-    navigator.clipboard.writeText(key);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
+  // Settings handlers
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -126,80 +187,60 @@ export default function Dashboard() {
     if (error) {
       setError(error);
     } else {
-      setSuccess('Settings saved successfully');
+      setSuccess('Settings saved successfully!');
     }
-    
     setSaving(false);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
-  };
-
-  const performHealthCheck = useCallback(async () => {
+  // Health check handler
+  const performHealthCheck = async () => {
     setHealthLoading(true);
+    setHealthCheck(null);
+
     try {
-      const result = await getHealthCheck();
-      setHealthCheck(result);
-    } catch (error) {
-      console.error('Health check failed:', error);
+      const startTime = Date.now();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/health`);
+      const latency = Date.now() - startTime;
+
+      if (response.ok) {
+        const data = await response.json();
+        setHealthCheck({
+          status: 'healthy',
+          latency,
+          services: data.services,
+        });
+      } else {
+        setHealthCheck({
+          status: 'unhealthy',
+          latency,
+          error: `HTTP ${response.status}`,
+        });
+      }
+    } catch (err) {
       setHealthCheck({
         status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        latency: 0,
-        services: {
-          api: { status: 'error', latency: 0 },
-          auth: { status: 'error', latency: 0 },
-          payments: { status: 'error', latency: 0 },
-          customers: { status: 'error', latency: 0 },
-        },
-        error: error instanceof Error ? error.message : 'Failed to perform health check',
+        error: err instanceof Error ? err.message : 'Network error',
       });
     } finally {
       setHealthLoading(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    if (activeTab === 'health' && !healthCheck && !healthLoading) {
-      performHealthCheck();
-    }
-  }, [activeTab, healthCheck, healthLoading, performHealthCheck]);
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Dashboard Header */}
-      <div className="bg-[#000000] ">
-        <div className="max-w-5xl pt-15 mx-auto border-b border-[#222] px-4 sm:px-6 lg:px-8 py-6">
+      {/* Header */}
+      <div className="bg-card border-b border-muted">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-white font-mono">Dashboard</h1>
-              <p className="text-gray-400 mt-1 font-mono text-sm">
-                Manage your API keys, settings, and view usage analytics
+              <p className="text-muted mt-1 font-mono text-sm">
+                Welcome back, {user?.primaryEmailAddress?.emailAddress || 'User'}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500 font-mono">{user.email}</span>
-              <button
-                onClick={handleSignOut}
-                className="text-sm text-gray-400 hover:text-primary transition-colors font-mono"
-              >
-                Sign out
-              </button>
-            </div>
+            <PaymentStatus />
           </div>
         </div>
       </div>
@@ -224,9 +265,189 @@ export default function Dashboard() {
         )}
 
         {/* Tabs */}
-        <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-8" />
+        <div className="flex gap-1 mb-8 border-b border-muted">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-6 py-3 font-mono text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-muted hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
         {/* Tab Content */}
+        {activeTab === 'payments' && (
+          <div className="space-y-6">
+            {/* Payment Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary font-mono">
+                      {paymentStats.totalPayments.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Total Payments</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-green-500 font-mono">
+                      ${(paymentStats.totalAmount / 100).toFixed(2)}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Total Amount</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary font-mono">
+                      {paymentStats.successRate}%
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Success Rate</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary font-mono">
+                      {paymentStats.recentPayments.filter(p => p.status === 'succeeded').length}
+                    </p>
+                    <p className="text-sm text-gray-400 mt-1 font-mono">Recent Successes</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Quick Actions</CardTitle>
+                <CardDescription className="font-mono">
+                  Common payment operations and shortcuts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => window.open('/docs', '_blank')}
+                    className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg hover:bg-[#222] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">📚</span>
+                      <div>
+                        <p className="font-medium text-white font-mono">View Docs</p>
+                        <p className="text-sm text-gray-400 font-mono">API documentation</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('api-keys')}
+                    className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg hover:bg-[#222] transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🔑</span>
+                      <div>
+                        <p className="font-medium text-white font-mono">Manage Keys</p>
+                        <p className="text-sm text-gray-400 font-mono">API key management</p>
+                      </div>
+                    </div>
+                  </button>
+                  <Link
+                    href="/dashboard/setup"
+                    className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg hover:bg-[#222] transition-colors text-left block"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🔗</span>
+                      <div>
+                        <p className="font-medium text-white font-mono">Setup</p>
+                        <p className="text-sm text-gray-400 font-mono">Connect providers</p>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Payments Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-white font-mono">Recent Payments</CardTitle>
+                <CardDescription className="font-mono">
+                  Latest payment transactions and their status.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {paymentsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <LoadingSpinner size="lg" />
+                  </div>
+                ) : paymentStats.recentPayments.length === 0 ? (
+                  <EmptyState
+                    icon="💳"
+                    title="No payments yet"
+                    description="Your payment transactions will appear here once you start processing payments."
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-[#222]">
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-400 font-mono">ID</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-400 font-mono">Amount</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-400 font-mono">Status</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-400 font-mono">Provider</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-400 font-mono">Customer</th>
+                          <th className="text-left py-3 px-4 text-sm font-medium text-gray-400 font-mono">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentStats.recentPayments.map((payment) => (
+                          <tr key={payment.id} className="border-b border-[#111] hover:bg-[#111]">
+                            <td className="py-3 px-4 text-sm text-gray-300 font-mono">
+                              {payment.id.slice(-8)}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-white font-mono">
+                              ${(payment.amount / 100).toFixed(2)} {payment.currency.toUpperCase()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge
+                                variant={payment.status === 'succeeded' ? 'default' :
+                                       payment.status === 'failed' ? 'destructive' : 'secondary'}
+                                className="font-mono"
+                              >
+                                {payment.status}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-300 font-mono capitalize">
+                              {payment.provider}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-300 font-mono">
+                              {payment.customer_email || payment.customer_name || 'N/A'}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-400 font-mono">
+                              {new Date(payment.created_at).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'api-keys' && (
           <div className="space-y-6">
             {/* Generate new key */}
@@ -325,7 +546,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Email</label>
-                    <p className="text-white font-mono">{user.email}</p>
+                    <p className="text-white font-mono">{user?.email || 'Loading...'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1 font-mono">Plan</label>
@@ -355,10 +576,20 @@ export default function Dashboard() {
             {/* Provider Credentials */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-white font-mono">Payment Provider Credentials</CardTitle>
-                <CardDescription className="font-mono">
-                  Configure your payment provider account IDs for routing payments.
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-white font-mono">Payment Provider Credentials</CardTitle>
+                    <CardDescription className="font-mono">
+                      Configure your payment provider account IDs for routing payments.
+                    </CardDescription>
+                  </div>
+                  <Link
+                    href="/dashboard/setup"
+                    className="text-primary hover:underline font-mono text-sm"
+                  >
+                    Setup Guide →
+                  </Link>
+                </div>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSaveSettings}>
