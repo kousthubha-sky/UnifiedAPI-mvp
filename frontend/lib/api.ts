@@ -63,25 +63,67 @@ interface ListApiKeysResponse {
 }
 
 class UnifiedAPIClient {
-    constructor(_config: any) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn('[UnifiedAPIClient] Using mock implementation. Replace with real SDK before production.');
+  private baseUrl: string;
+  private apiKey: string;
+  private environment: string;
+
+  constructor(config: { apiKey: string; environment: string; baseUrl?: string }) {
+    this.apiKey = config.apiKey;
+    this.environment = config.environment;
+    this.baseUrl = config.baseUrl || this.getBaseUrl();
+  }
+
+  private getBaseUrl(): string {
+    switch (this.environment) {
+      case 'production':
+        return 'https://api.yourdomain.com'; // Replace with actual production URL
+      case 'staging':
+        return 'https://api-staging.yourdomain.com'; // Replace with actual staging URL
+      default:
+        return 'http://localhost:8000'; // Local development
     }
   }
+
+  private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.apiKey}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
   async healthCheck(): Promise<HealthCheckResult> {
+    const startTime = Date.now();
+    const data = await this.makeRequest<{ status: string; checks?: any }>('/health');
+    const latency = Date.now() - startTime;
+
     return {
-      status: 'healthy',
+      status: data.status === 'healthy' ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
-      latency: 50,
+      latency,
       services: {
-        api: { status: 'ok', latency: 20 },
-        auth: { status: 'ok', latency: 20 },
-        payments: { status: 'ok', latency: 20 },
-        customers: { status: 'ok', latency: 20 },
+        api: { status: 'ok', latency },
+        auth: { status: 'ok', latency },
+        payments: { status: 'ok', latency },
+        customers: { status: 'ok', latency },
       },
     };
   }
+
   getMetrics(): MetricsCollector {
+    // For now, return mock metrics since backend may not have this endpoint
     return {
       getSummary: () => ({
         total: 100,
@@ -92,29 +134,46 @@ class UnifiedAPIClient {
       }),
     };
   }
+
   payments = {
-    create: async (payload: any): Promise<CreatePaymentResponse> => ({
-      id: 'pay_mock_' + Date.now(),
-      status: 'completed',
-      amount: payload.amount,
-      currency: payload.currency,
-    }),
-    refund: async (_paymentId: string, options?: any): Promise<RefundPaymentResponse> => ({
-      id: 'ref_mock_' + Date.now(),
-      status: 'completed',
-      amount: options?.amount || 100,
-    }),
-    list: async (_options?: any) => [],
+    create: async (payload: any): Promise<CreatePaymentResponse> => {
+      const data = await this.makeRequest<{ id: string; status: string; amount: number; currency: string }>('/payments', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return data;
+    },
+    refund: async (paymentId: string, options?: any): Promise<RefundPaymentResponse> => {
+      const data = await this.makeRequest<{ id: string; status: string; amount: number }>(`/payments/${paymentId}/refund`, {
+        method: 'POST',
+        body: JSON.stringify(options || {}),
+      });
+      return data;
+    },
+    list: async (options?: any) => {
+      const params = new URLSearchParams();
+      if (options) {
+        Object.entries(options).forEach(([key, value]) => {
+          if (value !== undefined) params.append(key, String(value));
+        });
+      }
+      const data = await this.makeRequest<any[]>(`/payments?${params}`);
+      return data;
+    },
   };
+
   apiKeys = {
-    create: async (payload: any): Promise<CreateApiKeyResponse> => ({
-      id: 'key_mock_' + Date.now(),
-      key: 'sk_mock_' + Math.random().toString(36).substring(2),
-      name: payload.name,
-    }),
-    list: async (): Promise<ListApiKeysResponse> => ({
-      keys: [],
-    }),
+    create: async (payload: any): Promise<CreateApiKeyResponse> => {
+      const data = await this.makeRequest<{ id: string; key: string; name?: string }>('/api-keys', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      return data;
+    },
+    list: async (): Promise<ListApiKeysResponse> => {
+      const data = await this.makeRequest<{ keys: any[] }>('/api-keys');
+      return data;
+    },
   };
 }
 
@@ -192,31 +251,6 @@ export function getSDKClient(): UnifiedAPIClient {
     sdkClient = new UnifiedAPIClient({
       apiKey,
       environment,
-      // Add request interceptor for error handling
-      requestInterceptors: [
-        (request: any) => {
-          console.log(`SDK Request: ${request.method} ${request.path}`);
-          return request;
-        }
-      ],
-      // Add response interceptor for error handling
-      responseInterceptors: [
-        (response: any) => {
-          if (response.status === 401) {
-            // Clear stored auth data on 401
-            clearAllAuthData();
-            throw new Error('Authentication failed. Please log in again.');
-          }
-          return response.data;
-        }
-      ],
-      // Add error interceptor for logging
-      errorInterceptors: [
-        (error: any) => {
-          console.error('SDK Error:', error.message);
-          return error;
-        }
-      ],
     });
   }
   return sdkClient;

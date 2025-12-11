@@ -126,7 +126,7 @@ class Settings(BaseSettings):
 
     # Credential encryption key
     credential_encryption_key: str = Field(
-        default="default-dev-encryption-key-change-in-production",
+        default="Spyo4oZbcZ+hca/RyzV3SUar2sL2lnpRNEUvDYwxEO0=",
         alias="CREDENTIAL_ENCRYPTION_KEY",
         description="Key for encrypting payment provider credentials in database",
     )
