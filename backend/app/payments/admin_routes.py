@@ -28,7 +28,7 @@ class CredentialCreateRequest(BaseModel):
     """Request model for creating a credential."""
 
     environment: str = Field(..., description="Environment (local/staging/production)")
-    provider: str = Field(..., description="Payment provider (stripe/paypal)")
+    provider: str = Field(..., description="Payment provider (paypal)")
     credential_type: str = Field(..., description="Credential type (api_key, client_secret, etc.)")
     credential_value: str = Field(..., description="The credential value")
     description: str | None = Field(None, description="Optional description")

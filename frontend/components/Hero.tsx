@@ -16,7 +16,7 @@ const TerminalWindow = () => {
     { text: "", delay: 0 },
     { text: "$ OneRouter init", delay: 50 },
     { text: "→ Initializing OneRouter...", delay: 30, color: "text-gray-400" },
-    { text: "✓ Connected to Stripe, PayPal, and more", delay: 30, color: "text-primary" },
+    { text: "✓ Connected to PayPal and more", delay: 30, color: "text-primary" },
     { text: "", delay: 0 },
     { text: "$ OneRouter.payments.create(...)", delay: 50 },
     { text: '{"status": "success", "amount": 2999}', delay: 30, color: "text-[#ff3366]" },
@@ -106,7 +106,7 @@ export default function Hero() {
         </h1>
 
         <p className="text-lg md:text-xl text-gray-400 mb-8 max-w-3xl mx-auto leading-relaxed font-mono">
-          Stop juggling multiple SDKs. OneRouter connects you to Stripe, PayPal, and more
+          Stop juggling multiple SDKs. OneRouter connects you to PayPal and more
           through a unified API. From setup to first payment in under 5 minutes.
         </p>
 

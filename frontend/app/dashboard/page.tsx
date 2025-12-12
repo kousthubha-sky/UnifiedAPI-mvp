@@ -50,7 +50,6 @@ export default function DashboardPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Settings state
-  const [stripeAccountId, setStripeAccountId] = useState(customer?.stripe_account_id || '');
   const [paypalAccountId, setPaypalAccountId] = useState(customer?.paypal_account_id || '');
   const [saving, setSaving] = useState(false);
 
@@ -84,7 +83,6 @@ export default function DashboardPage() {
   // Update settings when customer changes
   useEffect(() => {
     if (customer) {
-      setStripeAccountId(customer.stripe_account_id || '');
       setPaypalAccountId(customer.paypal_account_id || '');
     }
   }, [customer]);
@@ -180,7 +178,6 @@ export default function DashboardPage() {
     setSuccess(null);
 
     const { error } = await updateCustomer({
-      stripe_account_id: stripeAccountId || undefined,
       paypal_account_id: paypalAccountId || undefined,
     });
 
@@ -594,19 +591,7 @@ export default function DashboardPage() {
               <CardContent>
                 <form onSubmit={handleSaveSettings}>
                   <div className="space-y-4">
-                    <div>
-                      <label htmlFor="stripeAccountId" className="block text-sm font-medium text-gray-400 mb-1 font-mono">
-                        Stripe Account ID
-                      </label>
-                      <input
-                        id="stripeAccountId"
-                        type="text"
-                        value={stripeAccountId}
-                        onChange={(e) => setStripeAccountId(e.target.value)}
-                        placeholder="acct_xxx..."
-                        className="w-full px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
-                      />
-                    </div>
+
                     <div>
                       <label htmlFor="paypalAccountId" className="block text-sm font-medium text-gray-400 mb-1 font-mono">
                         PayPal Account ID

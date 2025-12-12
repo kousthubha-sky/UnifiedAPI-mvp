@@ -22,24 +22,13 @@ export default function SetupPage() {
     const error = searchParams.get('error');
 
     if (success) {
-      setSuccess('Stripe account connected successfully!');
+      setSuccess('Account connected successfully!');
     } else if (error) {
       setError(`Connection failed: ${error}`);
     }
   }, [searchParams]);
 
-  const handleStripeConnect = async () => {
-    setLoading(true);
-    setError(null);
 
-    try {
-      // Redirect to backend OAuth endpoint
-      window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/customers/oauth/stripe/connect`;
-    } catch (err) {
-      setError('Failed to initiate Stripe connection');
-      setLoading(false);
-    }
-  };
 
   const handlePayPalConnect = async () => {
     setLoading(true);
@@ -109,57 +98,7 @@ export default function SetupPage() {
         )}
 
         {/* Setup Options */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Stripe Connect */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-white font-mono flex items-center gap-2">
-                    <span className="text-2xl">💳</span>
-                    Stripe Connect
-                  </CardTitle>
-                  <CardDescription className="font-mono">
-                    Connect your Stripe account for seamless payment processing
-                  </CardDescription>
-                </div>
-                {customer?.stripe_account_id && (
-                  <Badge className="font-mono">✅ Connected</Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm text-gray-300 font-mono">
-                  <p className="mb-2">Benefits:</p>
-                  <ul className="list-disc list-inside space-y-1 text-gray-400">
-                    <li>Automatic payment routing</li>
-                    <li>Webhook handling</li>
-                    <li>Secure key management</li>
-                    <li>Real-time status updates</li>
-                  </ul>
-                </div>
-
-                {customer?.stripe_account_id ? (
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <p className="text-sm text-green-400 font-mono">
-                      Connected to Stripe account: {customer.stripe_account_id}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleStripeConnect}
-                    disabled={loading}
-                    className="w-full px-6 py-3 bg-[#635bff] text-white font-bold rounded-lg hover:bg-[#5a52e8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-mono"
-                  >
-                    {loading ? <LoadingSpinner size="sm" className="border-white border-t-transparent mr-2" /> : null}
-                    Connect Stripe Account
-                  </button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
           {/* PayPal Connect */}
           <Card>
             <CardHeader>
@@ -243,21 +182,8 @@ export default function SetupPage() {
             <CardTitle className="text-white font-mono">Need Help?</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-medium text-white mb-2 font-mono">Stripe Setup</h4>
-                <p className="text-sm text-gray-400 font-mono mb-3">
-                  Learn how to set up your Stripe account for Connect.
-                </p>
-                <a
-                  href="https://stripe.com/docs/connect"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline font-mono text-sm"
-                >
-                  Stripe Connect Documentation →
-                </a>
-              </div>
+            <div className="grid grid-cols-1 gap-6">
+
               <div>
                 <h4 className="font-medium text-white mb-2 font-mono">PayPal Setup</h4>
                 <p className="text-sm text-gray-400 font-mono mb-3">

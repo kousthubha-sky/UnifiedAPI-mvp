@@ -32,7 +32,6 @@ from app.payments.errors import (
 from app.payments.credential_service import PaymentCredentialService
 from app.payments.providers.base import PaymentProviderAdapter
 from app.payments.providers.paypal import PayPalAdapter
-from app.payments.providers.stripe import StripeAdapter
 from app.payments.types import (
     CreatePaymentRequest,
     CreatePaymentResponse,
@@ -112,9 +111,7 @@ class PaymentService:
             }
             environment = environment_map.get(self.settings.environment, "local")
 
-            if provider == PaymentProvider.STRIPE:
-                adapter = StripeAdapter(self.credential_service, environment)
-            elif provider == PaymentProvider.PAYPAL:
+            if provider == PaymentProvider.PAYPAL:
                 adapter = PayPalAdapter(self.credential_service, environment, self.settings)
             else:
                 raise InvalidProviderError(provider_name)
@@ -229,8 +226,8 @@ class PaymentService:
                 return CreatePaymentResponse(**cached)
 
         try:
-            # Use Stripe as default provider for SDK compatibility
-            provider = PaymentProvider.STRIPE
+            # Use PayPal as default provider
+            provider = PaymentProvider.PAYPAL
             adapter = self._get_adapter(provider)
 
             # Create payment with provider

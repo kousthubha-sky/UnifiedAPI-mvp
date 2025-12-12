@@ -33,10 +33,10 @@ export class PaymentsResource {
    * @example
    * ```typescript
    * const payment = await client.payments.create({
-   *   amount: 1000, // $10.00 in cents
-   *   currency: 'USD',
-   *   provider: 'stripe',
-   *   customer_id: 'cust_123',
+    *   amount: 1000, // $10.00 in cents
+    *   currency: 'USD',
+    *   provider: 'paypal',
+    *   customer_id: 'cust_123',
    *   payment_method: 'pm_card_visa',
    *   description: 'Order #123',
    *   metadata: { order_id: '123' }
@@ -161,8 +161,8 @@ export class PaymentsResource {
 
     if (!request.provider) {
       errors.push('Provider is required');
-    } else if (!['stripe', 'paypal'].includes(request.provider)) {
-      errors.push('Provider must be "stripe" or "paypal"');
+    } else if (request.provider !== 'paypal') {
+      errors.push('Provider must be "paypal"');
     }
 
     if (!request.customer_id || typeof request.customer_id !== 'string') {

@@ -41,7 +41,6 @@ def client() -> TestClient:
 def mock_settings() -> MagicMock:
     """Create mock settings."""
     settings = MagicMock()
-    settings.stripe_api_key = "sk_test_123"
     settings.paypal_client_id = "test_client_id"
     settings.paypal_client_secret = "test_client_secret"
     settings.paypal_mode = "sandbox"
@@ -60,7 +59,7 @@ def mock_supabase() -> MagicMock:
         data=[
             {
                 "id": "test-payment-id",
-                "provider": "stripe",
+                "provider": "paypal",
                 "provider_transaction_id": "pi_test123",
                 "amount": 1000,
                 "currency": "USD",
@@ -92,50 +91,7 @@ def mock_redis() -> AsyncMock:
 class TestPaymentService:
     """Test suite for PaymentService."""
 
-    @pytest.mark.asyncio
-    async def test_create_payment_stripe_success(
-        self,
-        mock_settings: MagicMock,
-        mock_supabase: MagicMock,
-        mock_redis: AsyncMock,
-    ) -> None:
-        """Test successful Stripe payment creation."""
-        service = PaymentService(
-            settings=mock_settings,
-            supabase=mock_supabase,
-            redis=mock_redis,
-        )
 
-        # Mock the Stripe adapter
-        mock_result = ProviderPaymentResult(
-            provider_transaction_id="pi_test123",
-            status=PaymentStatus.COMPLETED,
-            client_secret="pi_test123_secret_xyz",
-            provider_metadata={"stripe_status": "succeeded"},
-        )
-
-        with patch.object(service, "_get_adapter") as mock_adapter:
-            adapter_instance = AsyncMock()
-            adapter_instance.create_payment.return_value = mock_result
-            mock_adapter.return_value = adapter_instance
-
-            request = CreatePaymentRequest(
-                amount=1000,
-                currency="USD",
-                provider=PaymentProvider.STRIPE,
-                customer_id="cust_123",
-                payment_method="pm_card_visa",
-                description="Test payment",
-            )
-
-            response = await service.create_payment(request)
-
-            assert response.provider_transaction_id == "pi_test123"
-            assert response.status == PaymentStatus.COMPLETED
-            assert response.amount == 1000
-            assert response.currency == "USD"
-            assert response.client_secret == "pi_test123_secret_xyz"
-            assert response.trace_id is not None
 
     @pytest.mark.asyncio
     async def test_create_payment_with_idempotency_cache_hit(
@@ -168,7 +124,7 @@ class TestPaymentService:
         request = CreatePaymentRequest(
             amount=1000,
             currency="USD",
-            provider=PaymentProvider.STRIPE,
+            provider=PaymentProvider.PAYPAL,
             customer_id="cust_123",
             payment_method="pm_card_visa",
         )
@@ -200,7 +156,7 @@ class TestPaymentService:
             refund_id="re_test123",
             status=PaymentStatus.REFUNDED,
             amount=1000,
-            provider_metadata={"stripe_status": "succeeded"},
+            provider_metadata={"paypal_status": "completed"},
         )
 
         with patch.object(service, "_get_adapter") as mock_adapter:
@@ -235,7 +191,7 @@ class TestPaymentService:
                 {
                     "id": "pay_1",
                     "provider_transaction_id": "pi_1",
-                    "provider": "stripe",
+                    "provider": "paypal",
                     "amount": 1000,
                     "currency": "USD",
                     "status": "completed",
@@ -293,12 +249,12 @@ class TestPaymentErrors:
     def test_provider_error(self) -> None:
         """Test ProviderError attributes."""
         error = ProviderError(
-            provider="stripe",
+            provider="paypal",
             message="API rate limited",
         )
         assert error.code == "PROVIDER_ERROR"
         assert error.status_code == 502
-        assert error.details["provider"] == "stripe"
+        assert error.details["provider"] == "paypal"
 
     def test_payment_not_found_error(self) -> None:
         """Test PaymentNotFoundError attributes."""
@@ -326,7 +282,7 @@ class TestPaymentRoutes:
             json={
                 "amount": 1000,
                 "currency": "USD",
-                "provider": "stripe",
+                "provider": "paypal",
                 "customer_id": "cust_123",
                 "payment_method": "pm_card_visa",
             },
@@ -381,7 +337,7 @@ class TestPaymentTypes:
             CreatePaymentRequest(
                 amount=0,  # Invalid: must be > 0
                 currency="USD",
-                provider=PaymentProvider.STRIPE,
+                provider=PaymentProvider.PAYPAL,
                 customer_id="cust_123",
                 payment_method="pm_card_visa",
             )
@@ -392,7 +348,7 @@ class TestPaymentTypes:
             CreatePaymentRequest(
                 amount=1000,
                 currency="US",  # Invalid: must be 3 chars
-                provider=PaymentProvider.STRIPE,
+                provider=PaymentProvider.PAYPAL,
                 customer_id="cust_123",
                 payment_method="pm_card_visa",
             )
@@ -423,13 +379,13 @@ class TestPaymentTypes:
     def test_list_payments_request_with_filters(self) -> None:
         """Test ListPaymentsRequest with filters."""
         request = ListPaymentsRequest(
-            provider=PaymentProvider.STRIPE,
+            provider=PaymentProvider.PAYPAL,
             status=PaymentStatus.COMPLETED,
             customer_id="cust_123",
             limit=50,
             offset=10,
         )
-        assert request.provider == PaymentProvider.STRIPE
+        assert request.provider == PaymentProvider.PAYPAL
         assert request.status == PaymentStatus.COMPLETED
         assert request.limit == 50
         assert request.offset == 10
@@ -448,5 +404,4 @@ class TestProviderStatusMapping:
 
     def test_payment_provider_values(self) -> None:
         """Test PaymentProvider enum values."""
-        assert PaymentProvider.STRIPE.value == "stripe"
         assert PaymentProvider.PAYPAL.value == "paypal"

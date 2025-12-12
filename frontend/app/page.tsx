@@ -7,10 +7,21 @@ import FeatureHighlights from '@/components/FeatureHighlights';
 import Pricing from '@/components/Pricing';
 import Testimonials from '@/components/Testimonials';
 import Link from 'next/link';
-import { SignUpButton, useUser } from '@clerk/nextjs';
+import { SignUpButton, useUser, useAuth } from '@clerk/nextjs';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
+  const { customer } = useAuth();
+  const router = useRouter();
+
+  // Redirect signed-in users to dashboard
+  useEffect(() => {
+    if (isSignedIn && user) {
+      router.push('/dashboard');
+    }
+  }, [isSignedIn, user, router]);
 
   return (
     <>

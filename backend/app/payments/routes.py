@@ -87,7 +87,7 @@ PaymentServiceOptionalDep = Annotated[PaymentService, Depends(get_payment_servic
     response_model=CreatePaymentResponse,
     summary="Create a payment",
     description=(
-        "Create a new payment using the specified provider (Stripe or PayPal). "
+        "Create a new payment using the specified provider (PayPal). "
         "Supports idempotency keys for safe retries."
     ),
     responses={
@@ -106,10 +106,10 @@ async def create_payment(
 ) -> CreatePaymentResponse:
     """Create a new payment.
 
-    Processes a payment through the specified provider (Stripe or PayPal).
+    Processes a payment through the specified provider (PayPal).
     The response includes the provider's transaction ID and status.
 
-    For Stripe payments, a `client_secret` is returned for frontend confirmation.
+    For some providers, a `client_secret` is returned for frontend confirmation.
 
     Args:
         request: FastAPI request object.

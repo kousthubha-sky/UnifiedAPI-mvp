@@ -6,15 +6,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-> **🚀 Revolutionary Payment Integration**: Same SDK works with **Stripe Connect** (one-click setup) and **BYOK** (bring your own keys) automatically. No code changes required!
+> **🚀 Revolutionary Payment Integration**: Unified SDK for payment processing with **BYOK** (bring your own keys) support. No code changes required!
 
 ## ✨ What Makes OneRouter Different
 
 Unlike traditional payment SDKs that lock you into one provider, OneRouter gives you the **best of both worlds**:
 
-- **🔗 Stripe Connect**: One-click OAuth setup, automatic token refresh, dashboard access
 - **🔑 BYOK (Bring Your Own Keys)**: Full control, multi-provider support, advanced configurations
-- **🔄 Hybrid Mode**: Switch between methods instantly without code changes
 - **🎯 Unified API**: Single interface for all payment operations
 
 ## 🎯 Perfect For
@@ -59,26 +57,11 @@ console.log(`Connection type: ${payment.connection_type}`); // "connect" or "api
 
 ## 🔑 Authentication Methods
 
-### Option A: Stripe Connect (Recommended)
+### BYOK (Bring Your Own Keys)
 ```typescript
-// 1. User clicks "Connect with Stripe"
-// 2. OAuth flow redirects to: /dashboard/payments/setup
-// 3. One-click authorization
-// 4. Ready to accept payments instantly!
-
-const payment = await client.payments.create({
-  amount: 5000,
-  currency: 'usd',
-  description: 'Order #123'
-});
-// Uses OAuth tokens automatically
-```
-
-### Option B: BYOK (Advanced)
-```typescript
-// 1. Get your Stripe secret key
+// 1. Get your PayPal API credentials
 // 2. Store encrypted in OneRouter dashboard
-// 3. Same API, different auth method
+// 3. Ready to accept payments!
 
 const payment = await client.payments.create({
   amount: 5000,
@@ -151,13 +134,13 @@ const payment = await client.payments.create({
 
 // Response
 {
-  id: 'pi_stripe_payment_id',
+  id: 'pay_1234567890',
   amount: 25000,
   currency: 'usd',
   status: 'succeeded',     // 'succeeded', 'pending', 'failed'
-  provider: 'stripe',
-  connection_type: 'connect', // 'connect' or 'api_key'
-  client_secret: 'pi_xxx_secret_xxx', // For frontend confirmation
+  provider: 'paypal',
+  connection_type: 'api_key', // 'connect' or 'api_key'
+  client_secret: 'pay_xxx_secret_xxx', // For frontend confirmation
   created_at: 1703123456   // Unix timestamp
 }
 ```
@@ -166,18 +149,18 @@ const payment = await client.payments.create({
 
 ```typescript
 // Full refund
-const refund = await client.payments.refund('pi_stripe_payment_id');
+const refund = await client.payments.refund('pay_1234567890');
 
 // Partial refund
-const refund = await client.payments.refund('pi_stripe_payment_id', {
+const refund = await client.payments.refund('pay_1234567890', {
   amount: 12500, // Refund $125.00
   reason: 'requested_by_customer'
 });
 
 // Response
 {
-  id: 're_stripe_refund_id',
-  payment_id: 'pi_stripe_payment_id',
+  id: 'ref_1234567890',
+  payment_id: 'pay_1234567890',
   amount: 12500,
   status: 'succeeded'
 }
@@ -252,13 +235,13 @@ const { client, mock } = UnifiedAPIClient.withMockTransport({
 
 // Mock responses
 mock.onCreatePayment(async (body) => ({
-  id: 'pi_test_123',
+  id: 'pay_test_123',
   amount: body.amount,
   currency: body.currency,
   status: 'succeeded',
-  provider: 'stripe',
-  connection_type: 'connect',
-  client_secret: 'pi_test_secret_xxx',
+  provider: 'paypal',
+  connection_type: 'api_key',
+  client_secret: 'pay_test_secret_xxx',
   created_at: Math.floor(Date.now() / 1000)
 }));
 
@@ -351,9 +334,9 @@ async function processMarketplacePayment(order) {
 ## ⚠️ Limitations & Considerations
 
 ### Current Limitations
-- **Single Provider**: Currently supports Stripe only (PayPal coming soon)
+- **Single Provider**: Currently supports PayPal only
 - **USD Focus**: Optimized for USD transactions
-- **No Subscriptions**: Use Stripe's billing for recurring payments
+- **No Subscriptions**: Use PayPal's billing for recurring payments
 - **No Webhooks**: Webhook forwarding planned for future release
 
 ### Best Practices
@@ -439,12 +422,12 @@ const client = new UnifiedAPIClient({
 
 ## 🚀 Migration Guide
 
-### From Stripe SDK
+### From Payment SDKs
 ```typescript
-// Before (Stripe SDK)
-import Stripe from 'stripe';
-const stripe = new Stripe('sk_live_xxx');
-const paymentIntent = await stripe.paymentIntents.create({
+// Before (Traditional SDK)
+import { PayPal } from 'paypal-sdk';
+const paypal = new PayPal({ clientId: '...', clientSecret: '...' });
+const payment = await paypal.payments.create({
   amount: 1000,
   currency: 'usd'
 });
@@ -518,7 +501,7 @@ const client = new UnifiedAPIClient({
 const payment = await client.payments.create({
   amount: 1000, // $10.00 in cents
   currency: 'USD',
-  provider: 'stripe',
+  provider: 'paypal',
   customer_id: 'cust_123',
   payment_method: 'pm_card_visa',
 });
@@ -541,7 +524,7 @@ async function main() {
   const payment = await client.payments.create({
     amount: 1000,
     currency: 'USD',
-    provider: 'stripe',
+    provider: 'paypal',
     customer_id: 'cust_123',
     payment_method: 'pm_card_visa',
   });
@@ -596,7 +579,7 @@ interface RequestOptions {
 const payment = await client.payments.create({
   amount: 2500,              // Amount in smallest currency unit (cents)
   currency: 'USD',           // 3-letter ISO currency code
-  provider: 'stripe',        // 'stripe' or 'paypal'
+  provider: 'paypal',        // Payment provider
   customer_id: 'cust_123',   // Customer identifier
   payment_method: 'pm_xxx',  // Payment method ID
   description: 'Order #123', // Optional description
@@ -625,7 +608,7 @@ const partialRefund = await client.payments.refund('pay_123', {
 
 ```typescript
 const result = await client.payments.list({
-  provider: 'stripe',      // Filter by provider
+  provider: 'paypal',      // Filter by provider
   status: 'completed',     // Filter by status
   customer_id: 'cust_123', // Filter by customer
   start_date: '2024-01-01', // Filter by date range
@@ -805,7 +788,7 @@ mock.onListPayments(async () => ({
 const payment = await client.payments.create({
   amount: 1000,
   currency: 'USD',
-  provider: 'stripe',
+  provider: 'paypal',
   customer_id: 'cust_test',
   payment_method: 'pm_test',
 });

@@ -25,9 +25,6 @@
 
 /* Tailwind base styles */
 @layer base {
-  body {
-    @apply bg-black text-white font-mono;
-  }
   html {
     @apply bg-black;
   }

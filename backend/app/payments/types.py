@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field
 class PaymentProvider(str, Enum):
     """Supported payment providers."""
 
-    STRIPE = "stripe"
     PAYPAL = "paypal"
 
 
@@ -78,7 +77,7 @@ class CreatePaymentResponse(BaseModel):
     )
     client_secret: str | None = Field(
         default=None,
-        description="Client secret for Stripe PaymentIntent (frontend confirmation)",
+        description="Client secret for payment confirmation (provider-specific)",
     )
 
 

@@ -213,3 +213,49 @@ def get_current_trace_id() -> str:
     This is a utility function for use outside of request context.
     """
     return get_trace_id()
+
+
+async def get_current_user(
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict:
+    """Get current user from API key or auth token.
+
+    For now, returns a mock user. In production, this would validate
+    the API key against the database and return user info.
+
+    Args:
+        x_api_key: API key from header
+        authorization: Authorization header
+
+    Returns:
+        User information dict
+
+    Raises:
+        HTTPException: If authentication fails
+    """
+    # TODO: Implement real authentication
+    # For now, return mock user
+    if not x_api_key and not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    # Mock user - replace with real auth logic
+    return {
+        "id": "mock_user_id",
+        "email": "user@example.com"
+    }
+
+
+async def get_db() -> SupabaseClient:
+    """Get database client for dependency injection.
+
+    Returns:
+        Supabase client
+
+    Raises:
+        RuntimeError: If database not configured
+    """
+    return get_supabase()

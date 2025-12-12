@@ -17,7 +17,6 @@ export interface Customer {
   id: string;
   email: string;
   tier: 'starter' | 'growth' | 'scale';
-  stripe_account_id?: string;
   paypal_account_id?: string;
   created_at: string;
   updated_at: string;
@@ -52,7 +51,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, isLoaded: userLoaded } = useUser();

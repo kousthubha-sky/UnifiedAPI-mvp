@@ -8,7 +8,7 @@ const highlights = [
   {
     title: 'One API',
     subtitle: 'Unified Integration',
-    description: 'Connect to Stripe, PayPal, and more through a single, consistent API. No need to learn multiple payment provider interfaces.',
+    description: 'Connect to PayPal and more through a single, consistent API. No need to learn multiple payment provider interfaces.',
     icon: (
       <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
@@ -51,15 +51,12 @@ const CodeComparison = () => {
         </div>
         <pre className="p-4 text-xs font-mono bg-[#080808] text-white overflow-x-auto">
 {`// Multiple SDK imports
-import Stripe from 'stripe';
 import { PayPal } from 'paypal-sdk';
 
-// Multiple configurations
-const stripe = new Stripe(KEY);
+// Single configuration
 const paypal = new PayPal(CONFIG);
 
-// Different API patterns
-await stripe.charges.create({...});
+// Consistent API patterns
 await paypal.payments.create({...});`}
         </pre>
       </div>

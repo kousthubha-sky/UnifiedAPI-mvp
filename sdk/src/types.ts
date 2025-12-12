@@ -49,7 +49,7 @@ export interface RequestOptions {
 }
 
 // Payment Provider Types
-export type PaymentProvider = 'stripe' | 'paypal';
+export type PaymentProvider = 'paypal';
 
 // Payment Status Types
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'processing';
@@ -66,7 +66,7 @@ export interface CreatePaymentRequest {
   provider: PaymentProvider;
   /** Customer identifier */
   customer_id: string;
-  /** Payment method identifier (e.g., Stripe PaymentMethod ID) */
+  /** Payment method identifier (e.g., PayPal payment method ID) */
   payment_method: string;
   /** Optional description */
   description?: string;
@@ -278,7 +278,7 @@ export interface CreatePaymentRequest {
 }
 
 export interface CreatePaymentResponse {
-  /** Payment ID (Stripe format: pi_...) */
+  /** Payment ID (provider-specific format) */
   id: string;
   /** Payment amount in cents */
   amount: number;
@@ -286,7 +286,7 @@ export interface CreatePaymentResponse {
   currency: string;
   /** Payment status */
   status: PaymentStatus;
-  /** Payment provider (always 'stripe' for now) */
+  /** Payment provider */
   provider: PaymentProvider;
   /** Connection type used ('connect' or 'api_key') */
   connection_type: ConnectionType;
@@ -304,7 +304,7 @@ export interface RefundPaymentRequest {
 }
 
 export interface RefundPaymentResponse {
-  /** Refund ID (Stripe format: re_...) */
+  /** Refund ID (provider-specific format) */
   id: string;
   /** Original payment ID */
   payment_id: string;

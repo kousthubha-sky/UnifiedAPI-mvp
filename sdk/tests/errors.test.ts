@@ -214,7 +214,7 @@ describe('Specific error classes', () => {
 
   describe('ProviderError', () => {
     it('should have correct properties', () => {
-      const error = new ProviderError('Stripe API error');
+      const error = new ProviderError('PayPal API error');
 
       expect(error.name).toBe('ProviderError');
       expect(error.code).toBe(ErrorCode.PROVIDER_ERROR);

@@ -145,7 +145,7 @@ export class UnifiedAPIClient {
    *   amount: (body as any).amount,
    *   currency: (body as any).currency,
    *   status: 'succeeded',
-   *   provider: 'stripe',
+   *   provider: 'paypal',
    *   connection_type: 'connect',
    *   client_secret: 'pi_test_secret_...',
    *   created_at: Math.floor(Date.now() / 1000)

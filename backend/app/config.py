@@ -75,16 +75,6 @@ class Settings(BaseSettings):
     # Payment Provider Configuration (now stored in database)
     # These environment variables are deprecated and will be removed
     # Credentials are now managed through the admin UI and stored encrypted in the database
-    stripe_api_key: str | None = Field(
-        default=None,
-        alias="STRIPE_API_KEY",
-        description="[DEPRECATED] Stripe API key - migrate to database storage",
-    )
-    stripe_webhook_secret: str | None = Field(
-        default=None,
-        alias="STRIPE_WEBHOOK_SECRET",
-        description="[DEPRECATED] Stripe webhook secret - migrate to database storage",
-    )
     paypal_mode: Literal["sandbox", "live"] = Field(
         default="sandbox",
         alias="PAYPAL_MODE",

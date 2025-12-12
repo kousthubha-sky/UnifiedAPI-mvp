@@ -183,7 +183,7 @@ describe('PaymentsResource', () => {
       const request: CreatePaymentRequest = {
         amount: 1000,
         currency: 'USD',
-        provider: 'stripe',
+        provider: 'paypal',
         customer_id: 'cust_123',
         payment_method: 'pm_card_visa',
       };
@@ -213,7 +213,7 @@ describe('PaymentsResource', () => {
         {
           amount: 1000,
           currency: 'USD',
-          provider: 'stripe',
+          provider: 'paypal',
           customer_id: 'cust_123',
           payment_method: 'pm_card_visa',
         },
@@ -228,7 +228,7 @@ describe('PaymentsResource', () => {
         client.payments.create({
           amount: -100,
           currency: 'USD',
-          provider: 'stripe',
+          provider: 'paypal',
           customer_id: 'cust_123',
           payment_method: 'pm_card_visa',
         })
@@ -240,7 +240,7 @@ describe('PaymentsResource', () => {
         client.payments.create({
           amount: 1000,
           currency: '',
-          provider: 'stripe',
+          provider: 'paypal',
           customer_id: 'cust_123',
           payment_method: 'pm_card_visa',
         })
@@ -252,7 +252,7 @@ describe('PaymentsResource', () => {
         client.payments.create({
           amount: 1000,
           currency: 'USD',
-          provider: 'invalid' as 'stripe',
+          provider: 'stripe' as 'paypal',
           customer_id: 'cust_123',
           payment_method: 'pm_card_visa',
         })
@@ -264,7 +264,7 @@ describe('PaymentsResource', () => {
         client.payments.create({
           amount: 1000,
           currency: 'USD',
-          provider: 'stripe',
+          provider: 'paypal',
           customer_id: '',
           payment_method: 'pm_card_visa',
         })
@@ -276,7 +276,7 @@ describe('PaymentsResource', () => {
         client.payments.create({
           amount: 1000,
           currency: 'USD',
-          provider: 'stripe',
+          provider: 'paypal',
           customer_id: 'cust_123',
           payment_method: '',
         })
@@ -296,7 +296,7 @@ describe('PaymentsResource', () => {
       await client.payments.create({
         amount: 1000,
         currency: 'USD',
-        provider: 'stripe',
+        provider: 'paypal',
         customer_id: 'cust_123',
         payment_method: 'pm_card_visa',
         metadata: { order_id: 'order_123' },
@@ -363,7 +363,7 @@ describe('PaymentsResource', () => {
           {
             id: 'pay_123',
             provider_transaction_id: 'pi_abc123',
-            provider: 'stripe',
+            provider: 'paypal',
             amount: 1000,
             currency: 'USD',
             status: 'completed',
@@ -403,7 +403,7 @@ describe('PaymentsResource', () => {
       }));
 
       await client.payments.list({
-        provider: 'stripe',
+        provider: 'paypal',
         status: 'completed',
         customer_id: 'cust_123',
         limit: 20,
@@ -502,7 +502,7 @@ describe('Retry configuration', () => {
       {
         amount: 1000,
         currency: 'USD',
-        provider: 'stripe',
+        provider: 'paypal',
         customer_id: 'cust_123',
         payment_method: 'pm_card_visa',
       },
@@ -530,7 +530,7 @@ describe('Retry configuration', () => {
       {
         amount: 1000,
         currency: 'USD',
-        provider: 'stripe',
+        provider: 'paypal',
         customer_id: 'cust_123',
         payment_method: 'pm_card_visa',
       },
@@ -567,7 +567,7 @@ describe('Error handling', () => {
       client.payments.create({
         amount: 1000,
         currency: 'USD',
-        provider: 'stripe',
+        provider: 'paypal',
         customer_id: 'cust_123',
         payment_method: 'pm_card_visa',
       })

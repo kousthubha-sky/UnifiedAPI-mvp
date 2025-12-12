@@ -9,8 +9,62 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Any
+from uuid import uuid4
 
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import Column, String, Boolean, TIMESTAMP, func, UUID, JSON, Text, Integer
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+# SQLAlchemy Models
+class Organization(Base):
+    """Organization model for multi-tenancy."""
+    __tablename__ = "organizations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    clerk_id = Column(String(255), nullable=False, unique=True, index=True)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(255), nullable=False, unique=True, index=True)
+    plan = Column(String(50), nullable=False, default="free")
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+
+class ServiceCredential(Base):
+    """Service credentials model with environment support."""
+    __tablename__ = "service_credentials"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    org_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    service_name = Column(String(50), nullable=False)
+    environment = Column(String(20), nullable=False, default="test")  # 'test' or 'prod'
+    encrypted_data = Column(Text, nullable=False)  # JSON encrypted data
+    features_config = Column(JSON, nullable=False, default=dict)
+    enabled_webhook_events = Column(JSON, nullable=False, default=list)
+    webhook_url = Column(String(2048))
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        {'schema': None},  # Use default schema
+    )
+
+class ApiKey(Base):
+    """API keys model."""
+    __tablename__ = "api_keys"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    org_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    environment = Column(String(20), nullable=False, default="test")  # 'test' or 'prod'
+    key_hash = Column(String(255), nullable=False, unique=True)
+    name = Column(String(255), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    rate_limit_calls = Column(Integer, nullable=False, default=100)
+    rate_limit_window = Column(Integer, nullable=False, default=60)  # seconds
+    last_used_at = Column(TIMESTAMP)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    expired_at = Column(TIMESTAMP)
 
 # =============================================================================
 # Customer Models
@@ -35,10 +89,6 @@ class CreateCustomerRequest(BaseModel):
         default=CustomerTier.STARTER,
         description="Customer tier (defaults to starter)",
     )
-    stripe_account_id: str | None = Field(
-        default=None,
-        description="Optional Stripe connected account ID",
-    )
     paypal_account_id: str | None = Field(
         default=None,
         description="Optional PayPal merchant ID",
@@ -50,10 +100,6 @@ class UpdateCustomerRequest(BaseModel):
 
     email: EmailStr | None = Field(default=None, description="New email address")
     tier: CustomerTier | None = Field(default=None, description="New tier")
-    stripe_account_id: str | None = Field(
-        default=None,
-        description="Stripe connected account ID",
-    )
     paypal_account_id: str | None = Field(
         default=None,
         description="PayPal merchant ID",
@@ -66,10 +112,6 @@ class CustomerResponse(BaseModel):
     id: str = Field(..., description="Customer UUID")
     email: str = Field(..., description="Customer email")
     tier: str = Field(..., description="Customer tier")
-    stripe_account_id: str | None = Field(
-        default=None,
-        description="Stripe connected account ID",
-    )
     paypal_account_id: str | None = Field(
         default=None,
         description="PayPal merchant ID",

@@ -276,7 +276,7 @@ export async function getMetrics(): Promise<MetricsCollector> {
 export async function createPaymentSDK(payload: {
   amount: number;
   currency: string;
-  provider: 'stripe' | 'paypal';
+  provider: 'paypal';
   customer_id: string;
   payment_method: string;
   description?: string;
@@ -295,7 +295,7 @@ export async function refundPaymentSDK(paymentId: string, options?: {
 }
 
 export async function listPaymentsSDK(options?: {
-  provider?: 'stripe' | 'paypal';
+  provider?: 'paypal';
   status?: 'pending' | 'completed' | 'failed' | 'refunded' | 'processing';
   customer_id?: string;
   start_date?: string;

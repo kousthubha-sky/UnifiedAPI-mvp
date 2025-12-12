@@ -4,7 +4,7 @@ export default function Features() {
   const features = [
     {
       title: 'Multi-Provider Support',
-      description: 'Seamlessly integrate Stripe, PayPal, and other payment providers through a unified API.',
+      description: 'Seamlessly integrate PayPal and other payment providers through a unified API.',
       icon: '🔗',
     },
     {

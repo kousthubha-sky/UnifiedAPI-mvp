@@ -9,12 +9,10 @@ from app.payments.providers.base import (
     ProviderRefundResult,
 )
 from app.payments.providers.paypal import PayPalAdapter
-from app.payments.providers.stripe import StripeAdapter
 
 __all__ = [
     "PaymentProviderAdapter",
     "ProviderPaymentResult",
     "ProviderRefundResult",
-    "StripeAdapter",
     "PayPalAdapter",
 ]

@@ -63,7 +63,7 @@ describeIntegration('Integration Tests', () => {
           const payment = await client.payments.create({
             amount: 1000,
             currency: 'USD',
-            provider: 'stripe',
+            provider: 'paypal',
             customer_id: 'cust_integration_test',
             payment_method: 'pm_card_visa',
             description: 'Integration test payment',
@@ -89,7 +89,7 @@ describeIntegration('Integration Tests', () => {
           client.payments.create({
             amount: 1000,
             currency: 'INVALID',
-            provider: 'stripe',
+            provider: 'paypal',
             customer_id: 'cust_test',
             payment_method: 'pm_card_visa',
           })
@@ -104,7 +104,7 @@ describeIntegration('Integration Tests', () => {
             {
               amount: 1000,
               currency: 'USD',
-              provider: 'stripe',
+              provider: 'paypal',
               customer_id: 'cust_test',
               payment_method: 'pm_card_visa',
             },
@@ -115,7 +115,7 @@ describeIntegration('Integration Tests', () => {
             {
               amount: 1000,
               currency: 'USD',
-              provider: 'stripe',
+              provider: 'paypal',
               customer_id: 'cust_test',
               payment_method: 'pm_card_visa',
             },
@@ -159,14 +159,14 @@ describeIntegration('Integration Tests', () => {
       it('should filter payments by provider', async () => {
         try {
           const result = await client.payments.list({
-            provider: 'stripe',
+            provider: 'paypal',
             limit: 10,
           });
 
           expect(result.payments).toBeInstanceOf(Array);
-          // All returned payments should be from Stripe
+          // All returned payments should be from PayPal
           result.payments.forEach((payment) => {
-            expect(payment.provider).toBe('stripe');
+            expect(payment.provider).toBe('paypal');
           });
         } catch (error) {
           if (error instanceof AuthenticationError) {
@@ -223,7 +223,7 @@ describeIntegration('Integration Tests', () => {
           const payment = await client.payments.create({
             amount: 1000,
             currency: 'USD',
-            provider: 'stripe',
+            provider: 'paypal',
             customer_id: 'cust_refund_test',
             payment_method: 'pm_card_visa',
           });
@@ -249,7 +249,7 @@ describeIntegration('Integration Tests', () => {
           const payment = await client.payments.create({
             amount: 1000,
             currency: 'USD',
-            provider: 'stripe',
+            provider: 'paypal',
             customer_id: 'cust_partial_refund',
             payment_method: 'pm_card_visa',
           });

@@ -23,7 +23,7 @@ const codeExamples: Record<string, CodeExample> = {
   -d '{
     "amount": 2999,
     "currency": "USD",
-    "provider": "stripe",
+    "provider": "paypal",
     "customer_id": "cust_123",
     "payment_method": "pm_card_visa",
     "description": "Order #12345"
@@ -38,7 +38,7 @@ const client = new UnifiedAPIClient({
 const payment = await client.payments.create({
   amount: 2999,
   currency: 'USD',
-  provider: 'stripe',
+  provider: 'paypal',
   customerId: 'cust_123',
   paymentMethod: 'pm_card_visa',
   description: 'Order #12345'
@@ -56,7 +56,7 @@ response = requests.post(
     json={
         'amount': 2999,
         'currency': 'USD',
-        'provider': 'stripe',
+        'provider': 'paypal',
         'customer_id': 'cust_123',
         'payment_method': 'pm_card_visa',
         'description': 'Order #12345'

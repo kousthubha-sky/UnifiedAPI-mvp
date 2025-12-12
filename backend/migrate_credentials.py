@@ -45,37 +45,6 @@ async def migrate_credentials():
     migrated = []
     skipped = []
 
-    # Migrate Stripe credentials
-    if settings.stripe_api_key:
-        try:
-            await credential_service.store_credential(
-                environment=environment,
-                provider="stripe",
-                credential_type="api_key",
-                credential_value=settings.stripe_api_key,
-                description="Migrated from STRIPE_API_KEY environment variable"
-            )
-            migrated.append("Stripe API Key")
-            print("✓ Migrated Stripe API Key")
-        except Exception as e:
-            print(f"✗ Failed to migrate Stripe API Key: {e}")
-            skipped.append("Stripe API Key")
-
-    if settings.stripe_webhook_secret:
-        try:
-            await credential_service.store_credential(
-                environment=environment,
-                provider="stripe",
-                credential_type="webhook_secret",
-                credential_value=settings.stripe_webhook_secret,
-                description="Migrated from STRIPE_WEBHOOK_SECRET environment variable"
-            )
-            migrated.append("Stripe Webhook Secret")
-            print("✓ Migrated Stripe Webhook Secret")
-        except Exception as e:
-            print(f"✗ Failed to migrate Stripe Webhook Secret: {e}")
-            skipped.append("Stripe Webhook Secret")
-
     # Migrate PayPal credentials
     if settings.paypal_client_id:
         try:
